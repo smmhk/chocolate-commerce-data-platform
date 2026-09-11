@@ -175,16 +175,49 @@ Purdys의 비즈니스와 기술 환경을 조사하면서 한 가지 질문이 
 
 그래서 실제 Purdys의 시스템이나 데이터를 사용하는 대신, 가상의 초콜릿 브랜드인 **Charlie's Chocolate Factory 🍫**를 만들어 비슷한 비즈니스 환경을 직접 구성해보기로 했습니다.
 
-제가 만들고 싶은 구조는 다음과 같습니다.
+---
+
+## 🍫 Charlie's Chocolate Factory
+
+Purdys를 조사하면서 이해한 리테일 비즈니스 구조를 직접 실험해보기 위해 만든 **가상의 초콜릿 판매 플랫폼**입니다.
+
+Lovable을 활용하여 온라인 쇼핑몰과 오프라인 매장을 가진 가상의 초콜릿 브랜드 환경을 만들었습니다.
+
+### 🌐 Live Demo
+
+> ### 🍫 [Charlie's Chocolate Factory 방문하기 →](https://choco-magic-shop.lovable.app/)
+>
+> **온라인스토어/POS 를 직접 둘러보고 가상의 초콜릿 리테일 환경을 확인할 수 있습니다.**
+
+현재 프로젝트에서는 다음과 같은 비즈니스 환경을 가정하고 있습니다.
+
+| Channel | 역할 |
+|---|---|
+| 🏪 **Physical Stores** | Vancouver, Burnaby, Richmond 매장 |
+| ▣ **Square POS** | 오프라인 매장의 상품 및 거래 데이터 |
+| 🛒 **Online Store** | 고객 온라인 주문 |
+| 👤 **Customer** | 회원 및 구매 데이터 |
+| 🎁 **Rewards** | 구매 금액 기반 리워드 |
+| 📦 **Products** | 온라인·오프라인에서 판매되는 상품 |
+
+이 웹사이트 자체를 만드는 것이 프로젝트의 최종 목적은 아닙니다.
+
+**실제 리테일 비즈니스와 비슷한 데이터가 발생하는 환경을 만들고, 그 데이터를 Data Engineering 관점에서 수집하고 연결하는 것**이 이 프로젝트의 핵심 목표입니다.
+
+---
+
+# 🏗️ From Chocolate Store to Data Platform
+
+제가 만들고 싶은 전체 구조는 다음과 같습니다. (Online store/ POS 두가지버전 구현)
 
 ```text
  🏪 Physical Stores                         🛒 Online Store
          │                                         │
          │ Transactions                            │ Orders
          ▼                                         ▼
-   ┌─────────────┐                           ┌───────────────┐
-   │ ▣ Square API│                           │ E-commerce DB │
-   └──────┬──────┘                           └───────┬───────┘
+   ┌───────────────┐                           ┌───────────────┐
+   │ ▣ Square API │                           │ E-commerce DB │
+   └──────┬────────┘                           └─────┬─────────┘
           │                                          │
           └────────────────────┬─────────────────────┘
                                ▼
@@ -200,6 +233,181 @@ Purdys의 비즈니스와 기술 환경을 조사하면서 한 가지 질문이 
                 Analysis    Analysis   Analysis
 ```
 
+### 🔗 Business Flow
+
+```text
+🍫 Charlie's Chocolate Factory
+             │
+      ┌──────┴──────┐
+      ▼             ▼
+ 🏪 Offline       🛒 Online
+    Stores           Store
+      │               │
+      ▼               ▼
+ ▣ Square API    E-commerce DB
+      │               │
+      └───────┬───────┘
+              ▼
+        ⚙️ Data Engineering
+              ▼
+        ☁️ Data Platform
+              ▼
+        📊 Business Insights
+```
+# ⚙️ From Lovable DB to Square
+
+가상의 초콜릿 판매 환경을 만든 후, 다음 단계로 **Lovable DB에 저장된 상품 데이터를 Square로 가져오는 작업**을 진행했습니다.
+
+처음부터 Square에 상품을 직접 입력하는 대신, 기존 Lovable DB의 데이터를 활용하여 **데이터를 추출하고, 변환하고, Square API를 통해 전송하는 과정**을 직접 구현해보기로 했습니다.
+
+## 1️⃣ Export Data from Lovable DB
+
+먼저 Lovable DB에 저장되어 있던 상품 데이터를 `.csv` 파일로 Export했습니다.
+
+```text
+🍫 Lovable DB
+      │
+      ▼
+📄 CSV Export
+(; delimiter)
+```
+
+
+
+---
+
+## 2️⃣ Read & Inspect Data with Pandas
+
+다음으로 Python의 **Pandas**를 사용하여 CSV 파일을 읽었습니다.
+
+이 단계에서는 단순히 데이터를 불러오는 것뿐만 아니라,
+
+- 어떤 column들이 존재하는지
+- 데이터 타입은 무엇인지
+- 값이 정상적으로 들어왔는지
+- Square에서 사용할 수 있도록 어떤 데이터를 변환해야 하는지
+
+확인했습니다.
+
+```text
+📄 CSV
+   │
+   ▼
+🐼 Pandas
+   │
+   ▼
+🔍 Inspect Data
+   │
+   ├── Columns
+   ├── Data Types
+   └── Values
+```
+
+---
+
+## 3️⃣ Transform Data for Square API
+
+Lovable DB의 데이터 구조와 Square API가 요구하는 데이터 구조는 서로 다르기 때문에, 데이터를 그대로 전송할 수는 없었습니다.
+
+따라서 Python/Pandas를 사용하여 **Lovable의 데이터 구조를 Square API가 이해할 수 있는 형태로 변환하고 mapping하는 과정**을 진행했습니다.
+
+```text
+🍫 Lovable Data
+       │
+       ▼
+   🐼 Pandas
+       │
+       ▼
+⚙️ Clean / Transform / Map
+       │
+       ▼
+   📦 Square API Format
+       │
+       ▼
+    ▣ Square
+```
+
+개념적으로는 다음과 같은 **Source → Target Mapping** 과정입니다.
+
+| Source: Lovable | Target: Square |
+|---|---|
+| Product Name | Item Name |
+| Description | Description |
+| Price | Money / Amount |
+| Category | Category Mapping |
+
+이 과정을 통해 기존 시스템의 데이터를 새로운 시스템에서 사용할 수 있도록 변환하는 **Data Transformation과 Schema Mapping**의 기본 개념을 직접 경험할 수 있었습니다.
+
+---
+
+## 4️⃣ Send Data through Square API
+
+변환된 데이터는 Square API가 받을 수 있는 request 형태로 구성한 후 API를 통해 Square로 전송했습니다.
+
+전체 흐름을 정리하면 다음과 같습니다.
+
+```text
+🍫 Lovable DB
+      │
+      ▼
+📄 CSV Export
+      │
+      ▼
+🐼 Pandas
+      │
+      ▼
+🔍 Data Inspection
+      │
+      ▼
+⚙️ Transformation & Mapping
+      │
+      ▼
+📦 API Request
+      │
+      ▼
+▣ Square API
+      │
+      ▼
+✅ Square Catalog
+```
+
+---
+
+## 💻 Implementation
+
+Learning Notes에는 전체 코드 대신 **무엇을 했고 왜 그렇게 했는지**를 중심으로 기록했습니다.
+
+실제 Python 구현은 아래 소스 코드에서 확인할 수 있습니다.
+
+👉 **[View Python implementation →](./src/square/load_products.py)**
+
+> 💡 As I continue developing the project, I plan to separate data extraction, transformation, and Square API integration into smaller modules.
+
+---
+
+## 🧠 What I Learned
+
+이번 작업을 통해 단순히 API를 호출하는 것뿐만 아니라,
+
+**Source Data → Inspection → Transformation → Schema Mapping → API → Target System**
+
+으로 데이터가 이동하는 전체 과정을 이해할 수 있었습니다.
+
+```text
+Raw Data
+   ↓
+Understand the Data
+   ↓
+Transform the Data
+   ↓
+Match the Target Schema
+   ↓
+Send through API
+   ↓
+Validate the Result
+```
+
+이 과정은 앞으로 더 큰 Data Pipeline을 설계하기 위한 기초 단계라고 생각합니다.
 ---
 
 ## 🎯 Project Goal
@@ -246,19 +454,32 @@ Purdys의 비즈니스와 기술 환경을 조사하면서 한 가지 질문이 
  🌐 Became interested in omnichannel retail data
                     │
                     ▼
- ⚙️ Designed my own commerce data engineering project
+ 🍫 Built Charlie's Chocolate Factory
+                    │
+                    ▼
+ ⚙️ Building an omnichannel data platform
                     │
                     ▼
  📊 Learning Data Engineering through
           a real business scenario
 ```
 
-### 🍫 Curiosity → 🔎 Research → 💡 Idea → ⚙️ Engineering → 📊 Data
+### 🍫 Curiosity → 🔎 Research → 💡 Idea → 🛒 Business Simulation → ⚙️ Engineering → 📊 Data
 
-이 프로젝트는 단순히 기술을 연습하기 위한 프로젝트라기보다, **실제 비즈니스에 대한 궁금증에서 시작하여 Data Engineering을 공부하면서 직접 데이터 구조와 파이프라인을 만들어보는 Learning Project**입니다.
+이 프로젝트는 단순히 기술을 연습하기 위한 프로젝트라기보다, **실제 비즈니스에 대한 궁금증에서 시작하여 가상의 리테일 환경을 만들고, 그 환경에서 발생하는 데이터를 활용해 Data Engineering을 공부하는 Learning Project**입니다.
 
+---
 
+## 🔗 Project Links
 
+🍫 **Live E-commerce Demo**  
+[Charlie's Chocolate Factory →](https://choco-magic-shop.lovable.app/)
+
+💻 **Data Engineering Repository**  
+현재 보고 있는 GitHub Repository
+
+📝 **Learning Notes**  
+이 프로젝트를 진행하면서 이해한 내용과 기술적인 의사결정을 지속적으로 기록합니다.
 
 
 
