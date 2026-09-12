@@ -149,42 +149,7 @@ def create_product(square_product):
 print("\n===== RESULT =====")
 
 """
-Square에 요청한 payload 예시
-{
-  "idempotency_key": "4b69b6e3-a9e9-494b-9a56-c9110f81ae62",
-
-  "object": {
-    "type": "ITEM",
-    "id": "#p003-item",
-
-    "item_data": {
-      "name": "Golden Caramel Crunch",
-      "description": "Buttery caramel shards in milk chocolate.",
-
-      "variations": [
-        {
-          "type": "ITEM_VARIATION",
-          "id": "#p003-variation",
-
-          "item_variation_data": {
-            "name": "Regular",
-            "sku": "CCF-BAR-003",
-            "pricing_type": "FIXED_PRICING",
-
-            "price_money": {
-              "amount": 795,
-              "currency": "CAD"
-            },
-
-            "item_id": "#p003-item"
-          }
-        }
-      ]
-    }
-  }
-}
-
-# Square 상품생성 API response 
+Square 상품생성 API response 
 {
   "catalog_object": {
     "type": "ITEM",

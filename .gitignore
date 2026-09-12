@@ -4,3 +4,4 @@ __pycache__/
 .idea/
 *.pyc
 data/raw/
+data/processed/*.json

@@ -1,11 +1,7 @@
 #  Lovable 데이터 -> Square API 가 요구하는 데이터형식으로 변화하는 작업 진행
 import uuid
 
-import pandas as pd
-import requests
-
 from src.square.catalog import create_product
-
 
 def transform_product(df):
     # 1. 필요한 컬럼 확인/선택
