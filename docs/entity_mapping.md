@@ -196,21 +196,21 @@ updated_at
 
 ## 🗺️ 2. Source → Square Mapping
 
-| Lovable Source | Square Target | 처리 방법 |
-|---|---|---|
-| `id` | - | Lovable DB 내부 PK → Square 전송 X |
-| `product_id` | - | 내부 상품 ID → Square 전송 X / mapping에 활용 가능 |
-| `sku` | `item_data.variations[].item_variation_data.sku` | ✅ Mapping |
-| `product_name` | `item_data.name` | ✅ Mapping |
-| `category` | `item_data.categories[].id` | 🔜 Square Category ID 필요 |
-| `price` | `price_money.amount` | ✅ Dollar → Cent 변환 |
-| `image_key` | `item_data.image_ids[]` | 🔜 Square Image ID 필요 |
-| `description` | `item_data.description_html` | ✅ Mapping |
-| `is_best_seller` | - | Square 기본 필드 없음 → Source에 유지 |
-| `active_status` | - | 직접적인 1:1 mapping 없음 → 일단 Source에 유지 |
-| `square_catalog_object_id` | `CatalogObject.id` | ⭐ Square 생성 후 반환된 ID 저장 |
-| `created_at` | - | Source metadata → Square 전송 X |
-| `updated_at` | - | Source metadata → Square 전송 X |
+| Lovable Source | Square Target | Status | 처리 방법 |
+|---|---|:---:|---|
+| `id` | - | ⚪ | Lovable DB 내부 PK → Square 전송 X |
+| `product_id` | - | ⚪ | 내부 상품 ID → mapping에 활용 |
+| `sku` | `item_data.variations[].item_variation_data.sku` | 🟢 | Direct Mapping |
+| `product_name` | `item_data.name` | 🟢 | Direct Mapping |
+| `category` | `item_data.categories[].id` | 🟡 | Square Category ID 필요 |
+| `price` | `price_money.amount` | 🟢 | Dollar → Cent 변환 |
+| `image_key` | `item_data.image_ids[]` | 🟡 | Square Image ID 필요 |
+| `description` | `item_data.description_html` | 🟢 | Direct Mapping |
+| `is_best_seller` | - | ⚪ | Source에 유지 |
+| `active_status` | - | ⚪ | Source에 유지 |
+| `square_catalog_object_id` | `CatalogObject.id` | 🔵 | Square 생성 후 반환된 ID 저장 |
+| `created_at` | - | ⚪ | Source metadata |
+| `updated_at` | - | ⚪ | Source metadata |
 
 ---
 
