@@ -1,0 +1,407 @@
+[
+    {
+        "idempotency_key": "3fc9081d-9e46-4f39-9f20-ecf6ee62473e",
+        "object": {
+            "type": "ITEM",
+            "id": "#p001-item",
+            "item_data": {
+                "name": "Charlie's Classic Milk Chocolate Bar",
+                "description": "Creamy stone-ground milk chocolate in gold foil.",
+                "variations": [
+                    {
+                        "type": "ITEM_VARIATION",
+                        "id": "#p001-variation",
+                        "item_variation_data": {
+                            "name": "Regular",
+                            "sku": "CCF-BAR-001",
+                            "pricing_type": "FIXED_PRICING",
+                            "price_money": {
+                                "amount": 650,
+                                "currency": "CAD"
+                            },
+                            "item_id": "#p001-item"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "idempotency_key": "532b1591-025c-408d-be23-97feb85e9378",
+        "object": {
+            "type": "ITEM",
+            "id": "#p002-item",
+            "item_data": {
+                "name": "Midnight Dark Chocolate Bar",
+                "description": "72% single-origin dark chocolate.",
+                "variations": [
+                    {
+                        "type": "ITEM_VARIATION",
+                        "id": "#p002-variation",
+                        "item_variation_data": {
+                            "name": "Regular",
+                            "sku": "CCF-BAR-002",
+                            "pricing_type": "FIXED_PRICING",
+                            "price_money": {
+                                "amount": 725,
+                                "currency": "CAD"
+                            },
+                            "item_id": "#p002-item"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "idempotency_key": "83266d1f-75cd-47cf-84c0-5606be96dbd1",
+        "object": {
+            "type": "ITEM",
+            "id": "#p003-item",
+            "item_data": {
+                "name": "Golden Caramel Crunch",
+                "description": "Buttery caramel shards in milk chocolate.",
+                "variations": [
+                    {
+                        "type": "ITEM_VARIATION",
+                        "id": "#p003-variation",
+                        "item_variation_data": {
+                            "name": "Regular",
+                            "sku": "CCF-BAR-003",
+                            "pricing_type": "FIXED_PRICING",
+                            "price_money": {
+                                "amount": 795,
+                                "currency": "CAD"
+                            },
+                            "item_id": "#p003-item"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "idempotency_key": "3d1c2fef-6ffe-4b43-beba-feae22a478a4",
+        "object": {
+            "type": "ITEM",
+            "id": "#p004-item",
+            "item_data": {
+                "name": "Hazelnut Dream Bar",
+                "description": "Roasted hazelnut praline centre.",
+                "variations": [
+                    {
+                        "type": "ITEM_VARIATION",
+                        "id": "#p004-variation",
+                        "item_variation_data": {
+                            "name": "Regular",
+                            "sku": "CCF-BAR-004",
+                            "pricing_type": "FIXED_PRICING",
+                            "price_money": {
+                                "amount": 750,
+                                "currency": "CAD"
+                            },
+                            "item_id": "#p004-item"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "idempotency_key": "157d497b-f4c7-4efa-80ef-5254d7d5472a",
+        "object": {
+            "type": "ITEM",
+            "id": "#p005-item",
+            "item_data": {
+                "name": "Sea Salt Caramel Truffles",
+                "description": "Six flowing caramel truffles with sea salt.",
+                "variations": [
+                    {
+                        "type": "ITEM_VARIATION",
+                        "id": "#p005-variation",
+                        "item_variation_data": {
+                            "name": "Regular",
+                            "sku": "CCF-TRF-001",
+                            "pricing_type": "FIXED_PRICING",
+                            "price_money": {
+                                "amount": 1800,
+                                "currency": "CAD"
+                            },
+                            "item_id": "#p005-item"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "idempotency_key": "c792d8ce-14d7-4574-b2e6-f63fab6cc906",
+        "object": {
+            "type": "ITEM",
+            "id": "#p006-item",
+            "item_data": {
+                "name": "Raspberry Truffle Collection",
+                "description": "Tart raspberry ganache in dark shells.",
+                "variations": [
+                    {
+                        "type": "ITEM_VARIATION",
+                        "id": "#p006-variation",
+                        "item_variation_data": {
+                            "name": "Regular",
+                            "sku": "CCF-TRF-002",
+                            "pricing_type": "FIXED_PRICING",
+                            "price_money": {
+                                "amount": 1950,
+                                "currency": "CAD"
+                            },
+                            "item_id": "#p006-item"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "idempotency_key": "f22ccad5-213f-4924-b1c8-ba8a53ca69cc",
+        "object": {
+            "type": "ITEM",
+            "id": "#p007-item",
+            "item_data": {
+                "name": "Chocolate Factory Gift Box",
+                "description": "Twelve-piece signature assortment.",
+                "variations": [
+                    {
+                        "type": "ITEM_VARIATION",
+                        "id": "#p007-variation",
+                        "item_variation_data": {
+                            "name": "Regular",
+                            "sku": "CCF-GFT-001",
+                            "pricing_type": "FIXED_PRICING",
+                            "price_money": {
+                                "amount": 3400,
+                                "currency": "CAD"
+                            },
+                            "item_id": "#p007-item"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "idempotency_key": "45114535-5bb0-4f3a-bdb0-681695345a54",
+        "object": {
+            "type": "ITEM",
+            "id": "#p008-item",
+            "item_data": {
+                "name": "Golden Ticket Collection",
+                "description": "Our grand assortment with a keepsake golden ticket.",
+                "variations": [
+                    {
+                        "type": "ITEM_VARIATION",
+                        "id": "#p008-variation",
+                        "item_variation_data": {
+                            "name": "Regular",
+                            "sku": "CCF-GFT-002",
+                            "pricing_type": "FIXED_PRICING",
+                            "price_money": {
+                                "amount": 4800,
+                                "currency": "CAD"
+                            },
+                            "item_id": "#p008-item"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "idempotency_key": "e403d863-7d3d-4102-9a46-8859f4b0a556",
+        "object": {
+            "type": "ITEM",
+            "id": "#p009-item",
+            "item_data": {
+                "name": "Maple Chocolate Bites",
+                "description": "Maple cream bites rolled in cocoa.",
+                "variations": [
+                    {
+                        "type": "ITEM_VARIATION",
+                        "id": "#p009-variation",
+                        "item_variation_data": {
+                            "name": "Regular",
+                            "sku": "CCF-BTE-001",
+                            "pricing_type": "FIXED_PRICING",
+                            "price_money": {
+                                "amount": 975,
+                                "currency": "CAD"
+                            },
+                            "item_id": "#p009-item"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "idempotency_key": "7e1b93a4-3514-437b-8ae0-30da87263fc6",
+        "object": {
+            "type": "ITEM",
+            "id": "#p010-item",
+            "item_data": {
+                "name": "Peanut Butter Chocolate Cups",
+                "description": "Whipped peanut butter in milk chocolate cups.",
+                "variations": [
+                    {
+                        "type": "ITEM_VARIATION",
+                        "id": "#p010-variation",
+                        "item_variation_data": {
+                            "name": "Regular",
+                            "sku": "CCF-CUP-001",
+                            "pricing_type": "FIXED_PRICING",
+                            "price_money": {
+                                "amount": 1225,
+                                "currency": "CAD"
+                            },
+                            "item_id": "#p010-item"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "idempotency_key": "ec7ec704-e3c7-4f28-9e67-5c430bc9fe38",
+        "object": {
+            "type": "ITEM",
+            "id": "#p011-item",
+            "item_data": {
+                "name": "Strawberry Chocolate Hearts",
+                "description": "Strawberry cream hearts for the season.",
+                "variations": [
+                    {
+                        "type": "ITEM_VARIATION",
+                        "id": "#p011-variation",
+                        "item_variation_data": {
+                            "name": "Regular",
+                            "sku": "CCF-SEA-001",
+                            "pricing_type": "FIXED_PRICING",
+                            "price_money": {
+                                "amount": 1550,
+                                "currency": "CAD"
+                            },
+                            "item_id": "#p011-item"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "idempotency_key": "6312bbde-0e7a-49a1-9e73-6351bdad1ef6",
+        "object": {
+            "type": "ITEM",
+            "id": "#p012-item",
+            "item_data": {
+                "name": "Espresso Dark Chocolate",
+                "description": "Dark chocolate with fine espresso grounds.",
+                "variations": [
+                    {
+                        "type": "ITEM_VARIATION",
+                        "id": "#p012-variation",
+                        "item_variation_data": {
+                            "name": "Regular",
+                            "sku": "CCF-BAR-005",
+                            "pricing_type": "FIXED_PRICING",
+                            "price_money": {
+                                "amount": 775,
+                                "currency": "CAD"
+                            },
+                            "item_id": "#p012-item"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "idempotency_key": "b87d98ff-7828-40f0-9016-ca4ba29f83e2",
+        "object": {
+            "type": "ITEM",
+            "id": "#p013-item",
+            "item_data": {
+                "name": "Cookies & Cream Bar",
+                "description": "White chocolate with crushed cocoa cookies.",
+                "variations": [
+                    {
+                        "type": "ITEM_VARIATION",
+                        "id": "#p013-variation",
+                        "item_variation_data": {
+                            "name": "Regular",
+                            "sku": "CCF-BAR-006",
+                            "pricing_type": "FIXED_PRICING",
+                            "price_money": {
+                                "amount": 695,
+                                "currency": "CAD"
+                            },
+                            "item_id": "#p013-item"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "idempotency_key": "2db06913-453a-4a86-a5bc-b475177b4c93",
+        "object": {
+            "type": "ITEM",
+            "id": "#p014-item",
+            "item_data": {
+                "name": "Magical Assorted Truffles",
+                "description": "Twelve truffles, twelve fillings, one surprise.",
+                "variations": [
+                    {
+                        "type": "ITEM_VARIATION",
+                        "id": "#p014-variation",
+                        "item_variation_data": {
+                            "name": "Regular",
+                            "sku": "CCF-TRF-003",
+                            "pricing_type": "FIXED_PRICING",
+                            "price_money": {
+                                "amount": 2650,
+                                "currency": "CAD"
+                            },
+                            "item_id": "#p014-item"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "idempotency_key": "ae9a248b-5a96-4c02-93c8-7e819a1e93f0",
+        "object": {
+            "type": "ITEM",
+            "id": "#p015-item",
+            "item_data": {
+                "name": "Seasonal Celebration Box",
+                "description": "Limited seasonal assortment in a ribboned box.",
+                "variations": [
+                    {
+                        "type": "ITEM_VARIATION",
+                        "id": "#p015-variation",
+                        "item_variation_data": {
+                            "name": "Regular",
+                            "sku": "CCF-SEA-002",
+                            "pricing_type": "FIXED_PRICING",
+                            "price_money": {
+                                "amount": 4200,
+                                "currency": "CAD"
+                            },
+                            "item_id": "#p015-item"
+                        }
+                    }
+                ]
+            }
+        }
+    }
+]
