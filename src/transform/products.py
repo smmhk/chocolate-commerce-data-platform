@@ -1,19 +1,19 @@
-#  Square API 가 요구하는 데이터형식으로 변화하는 작업 진행
+#  Lovable 데이터 -> Square API 가 요구하는 데이터형식으로 변화하는 작업 진행
+import uuid
+
 import pandas as pd
+import requests
+
+from src.square.catalog import create_product
 
 
-def transform_products(df):
+def transform_product(df):
     # 1. 필요한 컬럼 확인/선택
     # 2. 결측값 처리
     # 3. 데이터 타입 변환
     # 4. 가격 등의 값 변환
     # 5. Lovable 필드 → Square 필드 mapping
     # 6. Square API에서 사용할 데이터 반환
-
-    print(df.head());
-    print(df.columns);
-    print(df.dtypes);
-    print(df.isnull().sum());
 
     # =============================================================================
     # Lovable Products → Square Catalog Field Mapping
@@ -71,4 +71,46 @@ def transform_products(df):
     #
     # =============================================================================
 
-    # return transformed_products
+    # Dataframe 형식의 row 1건 전달 받음.
+
+    # Square JSON Mapping
+    row = df.iloc[0]
+
+    product_id = row["product_id"].lower()
+    product_name = row["product_name"]
+    description = row["description"]
+    sku = row["sku"]
+    price = row["price"]
+    price_amount = int(price * 100)
+
+
+    square_product = {
+        "idempotency_key": str(uuid.uuid4()),
+        "object": {
+            "type": "ITEM",
+            "id": f"#{product_id}-item",
+            "item_data": {
+                "name": product_name,
+                "description": description,
+                "variations": [
+                    {
+                        "type": "ITEM_VARIATION",
+                        "id": f"#{product_id}-variation",
+                        "item_variation_data": {
+                            "name": "Regular",
+                            "sku": sku,
+                            "pricing_type": "FIXED_PRICING",
+                            "price_money": {
+                                "amount": price_amount,
+                                "currency": "CAD"
+                            },
+                            "item_id": f"#{product_id}-item"
+                        }
+                    }
+                ]
+            }
+        }
+    }
+
+    create_product(square_product)
+    return square_product
