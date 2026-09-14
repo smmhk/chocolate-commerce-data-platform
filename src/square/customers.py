@@ -87,68 +87,75 @@ def create_customer(square_customer: dict) -> dict:
 
 def update_customer_sync(
     customers_path: Path,
+    addresses_path: Path,
     customer_id: str,
     square_customer_id: str,
 ) -> None:
     if not square_customer_id:
         raise ValueError("저장할 Square 고객 ID가 없습니다.")
 
-    # 전체 원본 고객 데이터 읽기
-    customers_df = pd.read_csv(
-        customers_path,
-        sep=";",
-        dtype=str,
-        keep_default_na=False,
-        encoding="utf-8-sig",
-    )
+    # 두 파일을 먼저 읽고 검증
+    read_options = {
+        "sep": ";",
+        "dtype": str,
+        "keep_default_na": False,
+        "encoding": "utf-8-sig",
+    }
 
-    # 원본 고객 ID로 업데이트할 행 찾기
-    matched_rows = customers_df["id"].eq(str(customer_id))
+    customers_df = pd.read_csv(customers_path, **read_options)
+    addresses_df = pd.read_csv(addresses_path, **read_options)
 
-    if matched_rows.sum() != 1:
+    customer_mask = customers_df["id"].eq(str(customer_id))
+    address_mask = addresses_df["customer_id"].eq(str(customer_id))
+
+    if customer_mask.sum() != 1:
         raise ValueError(
-            f"고객 ID '{customer_id}'에 해당하는 행이 "
-            f"{matched_rows.sum()}개입니다. 정확히 1개여야 합니다."
+            f"고객 ID '{customer_id}'에 해당하는 고객 행이 "
+            f"{customer_mask.sum()}개입니다. 정확히 1개여야 합니다."
         )
 
-    # 성공한 결과만 업데이트
+    # 1. 고객 CSV: 고객 생성 성공 결과
     customers_df.loc[
-        matched_rows, "square_customer_id"
+        customer_mask, "square_customer_id"
     ] = square_customer_id
 
     customers_df.loc[
-        matched_rows, "square_sync_status"
+        customer_mask, "square_sync_status"
     ] = "SUCCESS"
 
     customers_df.loc[
-        matched_rows, "square_synced_at"
+        customer_mask, "square_synced_at"
     ] = datetime.now(timezone.utc).isoformat()
 
     customers_df.loc[
-        matched_rows, "square_sync_error"
+        customer_mask, "square_sync_error"
     ] = ""
 
-    # 임시 파일 저장이 끝난 후 원본 교체
-    temporary_path = customers_path.with_name(
-        f"{customers_path.name}.tmp"
+    # 2. 주소 CSV: 연결할 Square 고객 ID만 기록
+    if "square_customer_id" not in addresses_df.columns:
+        addresses_df["square_customer_id"] = ""
+
+    addresses_df.loc[
+        address_mask, "square_customer_id"
+    ] = square_customer_id
+
+    # 원본 CSV에 직접 저장
+    customers_df.to_csv(
+        customers_path,
+        sep=";",
+        index=False,
+        encoding="utf-8-sig",
     )
 
-    try:
-        customers_df.to_csv(
-            temporary_path,
-            sep=";",
-            index=False,
-            encoding="utf-8-sig",
-        )
-
-        temporary_path.replace(customers_path)
-
-    finally:
-        if temporary_path.exists():
-            temporary_path.unlink()
+    addresses_df.to_csv(
+        addresses_path,
+        sep=";",
+        index=False,
+        encoding="utf-8-sig",
+    )
 
     print(f"[CSV UPDATED] Customer: {customer_id}")
-
+    print(f"[ADDRESS MAPPING UPDATED] {address_mask.sum()} rows")
 
 
 # Square customer delete API

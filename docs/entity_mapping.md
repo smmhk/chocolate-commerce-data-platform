@@ -2,7 +2,7 @@
 
 Lovable 원본 데이터와 Square 데이터를 어떻게 연결하는지 기록한다.
 
-전체 컬럼을 그대로 옮기기보다, 프로젝트에 필요한 데이터를 선택하고 Square의 구조에 맞게 변환한다.
+필요한 데이터를 선택하고 Square의 구조로 변환하는 과정과, 구현하면서 배운 점을 함께 정리한다.
 
 ---
 
@@ -11,38 +11,51 @@ Lovable 원본 데이터와 Square 데이터를 어떻게 연결하는지 기록
 | Lovable Entity | Square Resource | 현재 상태 | 연동 범위 |
 |---|---|---|---|
 | `products` | Catalog | ✅ 1차 완료 | 상품명·설명·SKU·가격 |
-| `customers` | Customers | 🟡 진행 중 | RETAIL 주문에 연결된 회원 |
-| `customer_addresses` | Customer address | ⚪ 보류 | 고객 주소 연동 필요 시 검토 |
+| `customers` | Customers | ✅ 1차 완료 | POS에서 가입한 고객 |
+| `customer_addresses` | Customer address | ⚪ 보류 | 주소 연동 필요 시 검토 |
 | `stores` | Locations | ⚪ 예정 | 내부 매장 ID와 Square Location ID 연결 |
 | `orders` | Orders | ⚪ 예정 | RETAIL 주문만 전송 |
 | `order_items` | Order line items | ⚪ 예정 | 선택한 RETAIL 주문의 항목 |
 | `payments` | Payments | ⚪ 예정 | 매장 주문의 Sandbox 결제 처리 |
-| `loyalty_settings` | 미정 | ⚪ 범위 검토 | 원본 리워드 설정을 그대로 전송한다고 가정하지 않음 |
-| `loyalty_transactions` | 미정 | ⚪ 범위 검토 | 원본 리워드 기록과 Square 연동 범위 별도 결정 |
-| `tax_settings` | 직접 연동 제외 | — | 주문 금액 처리 시 필요한 세금 정보는 별도 검토 |
+| `loyalty_settings` | 미정 | ⚪ 범위 검토 | Square 연동 필요성 별도 검토 |
+| `loyalty_transactions` | 미정 | ⚪ 범위 검토 | 원본 리워드와 Square 연동 범위 결정 |
+| `tax_settings` | 직접 연동 제외 | — | 주문에 필요한 세금 처리는 별도 검토 |
 
-> 리워드 기능이 Lovable에서 동작하는 것과
-> Square Loyalty에 연동하는 것은 별개의 작업이다.
+상품과 고객의 1차 완료는 기본 생성과 성공 결과 저장을 의미한다.
+기존 정보 수정, 전체 대상의 일괄 처리 및 재실행 안정화는 별도로 확인한다.
+
+> Lovable의 리워드 기능과 Square Loyalty 연동은 별개의 작업이다.
 
 ---
 
-## 🌐 2. 채널별 데이터 경로
+## 🌐 2. 테스트 데이터 준비와 분석용 수집
 
-### Square 데이터 준비
+### Square에 데이터를 보내는 이유
 
-- 공통 상품은 Square에 등록한다.
-- 주문은 `channel = 'RETAIL'`만 선택한다.
-- 고객은 해당 매장 주문에 연결된 회원을 선택한다.
-- 주문 항목과 결제 데이터도 선택한 매장 주문을 기준으로 가져온다.
+현재 Lovable 애플리케이션은 온라인몰과 가상 POS 역할을 동시에 한다.
+
+실제 Square POS에서 등록했다면 이미 Square에 존재했을 상품·고객·거래 데이터를, 이번 프로젝트에서는 Lovable에서 만든 뒤 Square Sandbox로 전송한다.
+
+따라서 Lovable → Square는 가상의 매장 데이터 소스를 준비하는 과정이다.
+
+| 데이터 | Square 전송 기준 |
+|---|---|
+| 상품 | 온라인·매장 공통 상품 |
+| 고객 | `signup_channel = 'POS'` |
+| 주문 | `channel = 'RETAIL'` |
+| 주문 항목·결제 | 선택한 RETAIL 주문에 연결된 기록 |
 
 ### 향후 분석용 수집
 
-| 데이터 | 분석용 수집 경로 |
+| 데이터 | 수집 경로 |
 |---|---|
-| 매장 주문 | Square API → GCP → BigQuery |
-| 온라인 주문 | Lovable DB → GCP → BigQuery |
+| 매장 데이터 | Square API → GCP → BigQuery |
+| 온라인 데이터 | Lovable DB → GCP → BigQuery |
 
-Lovable에 남아 있는 RETAIL 원본 주문과 Square 주문은 같은 거래이므로, 분석할 때 중복 합산하지 않는다.
+분석을 위해 Square 데이터를 Lovable DB에 다시 복사할 필요는 없다.
+각 소스에서 수집한 데이터를 분석 플랫폼에서 연결한다.
+
+Lovable에 남은 RETAIL 주문과 Square에 복사한 주문은 같은 거래이므로 중복 집계하지 않는다.
 
 ---
 
@@ -50,45 +63,34 @@ Lovable에 남아 있는 RETAIL 원본 주문과 Square 주문은 같은 거래�
 
 ### 구현한 흐름
 
-1. Lovable 상품 데이터를 CSV로 내보낸다.
-2. Pandas로 읽고 원본 데이터를 확인한다.
+1. 상품 CSV를 Pandas로 읽는다.
+2. 컬럼과 값을 확인한다.
 3. SKU로 Square의 기존 상품을 검색한다.
-4. 신규 상품을 Square 요청 구조로 변환한다.
+4. 신규 상품을 요청 구조로 변환한다.
 5. Square Catalog API로 전송한다.
-6. 성공 응답의 Square ID와 sync 정보를 원본 CSV에 저장한다.
+6. 성공한 ID와 sync 정보를 원본 CSV에 저장한다.
 
-### 원본 → Square 필드 매핑
+### 원본 → Square 매핑
 
-아래 Square 경로는 요청의 `object` 내부를 기준으로 한다.
+Square 경로는 요청의 `object` 내부를 기준으로 한다.
 
-| Lovable 필드 | Square 필드 | 처리 방법 |
+| Lovable 필드 | Square 필드 | 처리 |
 |---|---|---|
 | `product_name` | `item_data.name` | 상품명 |
-| `description` | `item_data.description` 또는 `description_html` | 변환 코드에서 사용하는 필드에 맞춰 전달 |
-| `sku` | `item_data.variations[].item_variation_data.sku` | 상품의 판매 단위 식별 |
-| `price` | `item_data.variations[].item_variation_data.price_money.amount` | CAD 달러를 센트 정수로 변환 |
-| 원본 값 없음 | `price_money.currency` | `CAD` 설정 |
-| `product_id` | 임시 Item / Variation ID 생성에 사용 | 원본 상품과 요청 객체 연결 |
+| `description` | `item_data.description` 또는 `description_html` | 실제 변환 코드의 필드 사용 |
+| `sku` | `item_data.variations[].item_variation_data.sku` | 판매 단위 식별 |
+| `price` | `item_data.variations[].item_variation_data.price_money.amount` | CAD 달러 → 센트 정수 |
+| 원본 값 없음 | `item_data.variations[].item_variation_data.price_money.currency` | `CAD` |
+| `product_id` | 임시 Item / Variation ID | 요청 객체 식별에 사용 |
 
-설명 필드는 현재 `transform_product()`에서 실제 사용하는 형태를 기준으로 관리한다.
+예를 들어 `7.25 CAD`는 다음과 같이 변환한다.
 
-### 원본에 유지하는 필드
-
-| 필드 | 처리 |
-|---|---|
-| `id` | Lovable 내부 PK 유지 |
-| `is_best_seller` | 원본에서 관리 |
-| `active_status` | 원본에서 관리 |
-| `created_at`, `updated_at` | 원본 생성·수정 시각 유지 |
-| `category` | Square Category 연결은 후속 작업 |
-| `image_key` | Square Image 연결은 후속 작업 |
-
-**`active_status`와 `present_at_all_locations`는 같은 의미가 아니다.**
-
-- `active_status`: 원본 시스템의 상품 활성 상태
-- `present_at_all_locations`: Square에서 모든 매장에 존재하는지 나타내는 설정
-
-따라서 두 필드를 직접 매핑하지 않는다.
+```json
+{
+  "amount": 725,
+  "currency": "CAD"
+}
+```
 
 ### 변환 과정에서 생성하는 값
 
@@ -102,94 +104,74 @@ Lovable에 남아 있는 RETAIL 원본 주문과 Square 주문은 같은 거래�
 | `pricing_type` | `FIXED_PRICING` |
 | `currency` | `CAD` |
 
-### 요청 구조 예시
+### 원본에서 유지하는 값
 
-```json
-{
-  "idempotency_key": "<unique-request-key>",
-  "object": {
-    "type": "ITEM",
-    "id": "#p002-item",
-    "present_at_all_locations": true,
-    "item_data": {
-      "name": "Midnight Dark Chocolate Bar",
-      "description": "72% single-origin dark chocolate.",
-      "variations": [
-        {
-          "type": "ITEM_VARIATION",
-          "id": "#p002-variation",
-          "item_variation_data": {
-            "name": "Regular",
-            "sku": "CCF-BAR-002",
-            "pricing_type": "FIXED_PRICING",
-            "price_money": {
-              "amount": 725,
-              "currency": "CAD"
-            }
-          }
-        }
-      ]
-    }
-  }
-}
-```
+- `id`
+- `is_best_seller`
+- `active_status`
+- `created_at`
+- `updated_at`
+
+`category`와 `image_key`의 Square 객체 연결은 후속 작업이다.
+
+**`active_status`와 `present_at_all_locations`는 직접 매핑하지 않는다.**
+
+상품의 활성 상태와 Square의 매장별 존재 여부는 서로 다른 의미이기 때문이다.
 
 ### Item ID와 Variation ID
 
-| ID | 의미 | 활용 |
-|---|---|---|
-| Item ID | 상품 객체 ID | 상품 조회·삭제 등 |
-| Item Variation ID | SKU·가격이 연결된 판매 단위 ID | 주문 항목에 상품 연결 |
+| ID | 역할 |
+|---|---|
+| Item ID | 상품 객체 조회·삭제 등에 사용 |
+| Item Variation ID | SKU·가격이 연결된 판매 단위, 주문 항목 연결에 사용 |
 
-현재 공유한 코드에서는 다음 값을 저장한다.
+현재 코드:
 
 ```python
 square_catalog_object_id = square_variation["id"]
 ```
 
-즉, 현재 `square_catalog_object_id`에는 **Variation ID**가 들어간다.
+현재 `square_catalog_object_id`에는 Variation ID가 저장된다.
+이 값을 Item ID로 착각해서 사용하지 않아야 한다.
 
-Item ID로 착각해서 사용하지 않도록 주의한다. 향후 컬럼을 분리한다면 기존 데이터와 참조 코드도 함께 변경해야 한다.
+향후 두 ID를 별도 컬럼으로 관리한다면 기존 저장 데이터와 참조 코드도 함께 수정한다.
 
 ---
 
 ## 💾 4. 상품 연동 결과 저장
 
-별도의 `product_square_mapping.csv` 대신,
-입력 파일인 `products_export.csv`의 해당 상품 행을 업데이트하는 방식으로 변경했다.
+별도 매핑 CSV 대신 `products_export.csv`의 해당 행을 업데이트한다.
 
-| 컬럼 | 저장 내용 |
+| 컬럼 | 저장 값 |
 |---|---|
-| `square_catalog_object_id` | 현재 코드 기준 Square Variation ID |
-| `square_sync_status` | 성공 시 `SUCCESS` |
+| `square_catalog_object_id` | 현재 코드 기준 Variation ID |
+| `square_sync_status` | `SUCCESS` |
 | `square_synced_at` | 성공 시각, UTC |
-| `square_sync_error` | 현재 실패 기록은 구현하지 않음 |
+| `square_sync_error` | 실패 정보 저장은 현재 미구현 |
 
-### 현재 처리 기준
+### 처리 기준
 
 - SKU가 정확히 한 행에 해당하는지 확인한다.
-- 상품 데이터는 유지하고 sync 관련 컬럼만 수정한다.
-- 성공한 결과만 저장한다.
+- 기존 상품 값을 유지하면서 sync 컬럼만 수정한다.
 - API 실패는 콘솔에서 확인한다.
-- 상품 생성 후 CSV 저장이 실패하면 기존 삭제 함수로 방금 생성한 상품 삭제를 시도한다.
+- 생성 후 CSV 저장이 실패하면 방금 생성한 상품 삭제를 시도한다.
 
-로컬 CSV를 수정해도 Lovable DB에는 자동 반영되지 않는다.
+### 남은 작업
 
-### 남아 있는 개선 사항
+- 기존 SKU 검색 결과에서 ID를 가져와 CSV 매핑 복구
+- 기존 상품의 가격·설명 업데이트
+- 중복 검색 시 SKU의 정확한 일치 여부 확인
 
-현재 기존 SKU는 건너뛰므로, 새로 export한 CSV에는 기존 Square ID가 채워지지 않을 수 있다.
-
-기존 상품도 정확한 SKU로 조회한 뒤 ID를 원본 CSV에 기록하는 처리는 추가 구현이 필요하다.
-
-상품 가격·설명 변경을 Square에 반영하는 업데이트 기능도 별도 작업이다.
+이미 있는 상품을 건너뛰는 것만으로는 새 CSV의 ID 매핑이 채워지지 않는다.
 
 ---
 
-## 👤 5. Customer Mapping — 진행 중
+## 👤 5. Customer Mapping — 1차 완료
 
 ### 확인한 원본 구조
 
-현재 `customers_export.csv`는 회원 22명, 컬럼 15개이며 구분자는 `;`이다.
+처음 확인한 고객 export는 22행, 15개 컬럼이며 구분자는 `;`였다.
+행 수는 테스트 데이터를 추가하면서 달라질 수 있다.
 
 ```text
 id
@@ -209,117 +191,245 @@ square_synced_at
 square_sync_error
 ```
 
-### 고객 ID 구분
+### 고객 ID의 역할
 
 | 컬럼 | 의미 |
 |---|---|
-| `id` | 원본 고객 PK, 주문과 연결 |
+| `id` | 원본 고객 PK |
 | `customer_number` | 사람이 확인하기 위한 회원 번호 |
-| `user_id` | 로그인 계정과 연결하는 ID |
-| `square_customer_id` | Square 고객 생성 후 반환되는 ID |
+| `user_id` | 로그인 계정 연결 ID |
+| `square_customer_id` | Square 고객 ID |
 
-확인된 주문·고객 연결 관계:
+주문과 원본 고객은 다음 관계로 연결된다.
 
 ```text
 orders.customer_id = customers.id
 ```
 
-### 연동 대상 선택
+### 고객 선택 기준을 변경한 이유
 
-1. 주문에서 `channel = 'RETAIL'`만 선택한다.
-2. 고객 ID가 없는 비회원 주문은 고객 생성 대상에서 제외한다.
-3. 중복 없이 고객 ID를 추린다.
-4. `customers.id`와 연결해 대상 회원을 선택한다.
-5. 주문에 있는 고객 ID가 고객 CSV에 없으면 확인 후 진행한다.
+처음에는 RETAIL 주문에 연결된 고객을 선택했다.
 
-**`signup_channel`로 연동 대상을 선택하지 않는다.**
+하지만 이번 단계의 목적은 가상 POS에서 가입한 고객을 Square에 준비하는 것이므로, 현재는 고객의 가입 경로를 사용한다.
 
-온라인에서 가입한 회원도 매장 주문이 있으면 Square 연동 대상이다.
-
-```mermaid
-flowchart TD
-    A["orders"] --> B["RETAIL 주문 선택"]
-    B --> C["비어 있지 않은 customer_id 추출"]
-    D["customers"] --> E["customers.id로 연결"]
-    C --> E
-    E --> F["Square 연동 대상 회원"]
+```python
+target_customers_df = customers_df.loc[
+    customers_df["signup_channel"].eq("POS")
+].copy()
 ```
 
-### 고객 필드 매핑 초안
+| 조건 | 의미 |
+|---|---|
+| `customers.signup_channel = 'POS'` | POS에서 가입한 고객 |
+| `orders.channel = 'RETAIL'` | 매장에서 발생한 주문 |
 
-아래는 고객 생성 구현 전에 확정할 매핑 초안이다.
+가입 경로와 구매 경로는 다르다.
 
-| 원본 필드 | Square 대상 필드 | 계획 |
+온라인 가입 회원이 매장에서 구매한 경우의 고객 연결은 주문 연동 단계에서 별도로 처리한다.
+
+### 구현한 고객 필드 매핑
+
+| 원본 필드 | Square 요청 필드 | 처리 |
 |---|---|---|
-| `id` | `reference_id` | 원본 고객 ID를 참조값으로 전달 |
+| `id` | `reference_id` | 원본 고객 식별값 |
 | `first_name` | `given_name` | 이름 |
 | `last_name` | `family_name` | 성 |
 | `email` | `email_address` | 이메일 |
-| `phone` | `phone_number` | 전화번호 형식 확인 후 전달 |
-| `customer_number` | 직접 전송하지 않음 | 원본에 유지 |
-| `user_id` | 직접 전송하지 않음 | 원본 로그인 연결 정보 |
-| `customer_type` | 직접 전송하지 않음 | 원본에 유지 |
-| `signup_channel` | 직접 전송하지 않음 | 가입 경로로 유지 |
-| `created_at`, `updated_at` | 직접 전송하지 않음 | 원본 시각 유지 |
+| `phone` | `phone_number` | 문자열로 전달 |
+| `customer_number` | 전송하지 않음 | 원본에 유지 |
+| `user_id` | 전송하지 않음 | 원본 로그인 정보 |
+| `customer_type` | 전송하지 않음 | 원본에 유지 |
+| `signup_channel` | 전송하지 않음 | 연동 대상 선택에 사용 |
+| `created_at`, `updated_at` | 전송하지 않음 | 원본 시각 유지 |
 
-주소는 별도 테이블이므로 이번 기본 고객 연동 이후 필요에 따라 추가한다.
+`transform_customer()`는 빈 값을 정리하고, 값이 있는 필드만 요청에 포함한다.
+전화번호는 문자열로 읽으며, 국가번호 등 형식 정규화는 별도 검증할 부분이다.
 
-### 고객 성공 결과 저장 — 구현 예정
+### 요청 예시
 
-| CSV 컬럼 | 저장할 값 |
-|---|---|
-| `square_customer_id` | Square 응답의 고객 ID |
-| `square_sync_status` | `SUCCESS` |
-| `square_synced_at` | 성공 시각, UTC |
-| `square_sync_error` | 현재 성공 결과 저장 범위에서는 비워둠 |
+```json
+{
+  "reference_id": "<lovable-customer-id>",
+  "given_name": "Mandy",
+  "family_name": "Shin",
+  "email_address": "mandy@example.com",
+  "phone_number": "+16045550123",
+  "idempotency_key": "<request-key>"
+}
+```
 
-회원 결과는 `customers.id`로 해당 행을 찾아 업데이트한다.
+### 고객 연동 흐름
 
-**전송 대상만 CSV에 저장하지 않는다.**
-전체 고객 CSV를 유지하면서 대상 회원의 sync 컬럼만 수정해야 온라인 전용 회원이 파일에서 사라지지 않는다.
+1. POS 가입 고객을 선택한다.
+2. 원본 `id`로 Square의 `reference_id`를 검색한다.
+3. 기존 고객이면 생성을 건너뛴다.
+4. 신규 고객이면 요청용 딕셔너리로 변환한다.
+5. 고객 생성 API를 호출한다.
+6. 응답의 고객 ID를 원본 CSV에 저장한다.
 
 ---
 
-## 🏪 6. Store / Order Mapping — 예정
+## 🔑 6. 고객 중복 검색과 멱등성
+
+### 기존 고객 검색
+
+`search_customer_by_reference_id()`는 다음 값을 비교한다.
+
+```text
+Lovable customers.id = Square customer.reference_id
+```
+
+| 결과 | 처리 |
+|---|---|
+| 기존 고객 발견 | 신규 생성하지 않음 |
+| 검색 결과 없음 | 신규 생성 단계로 진행 |
+| API 검색 실패 | 예외로 중단 |
+
+검색 실패를 고객이 없는 것으로 처리하면 잘못된 신규 생성으로 이어질 수 있다.
+
+또한 생성 직후에는 검색 반영이 늦을 수 있으므로, 검색 결과만으로 중복 방지를 완전히 보장하지는 않는다.
+
+### 직접 경험한 오류
+
+```text
+IDEMPOTENCY_KEY_REUSED
+The idempotency key can only be retried with the same request data.
+```
+
+고객 ID로 고정한 키를 사용하면서 요청 내용이 달라져 오류가 발생했다.
+
+### 키 사용 기준
+
+| 상황 | 처리 |
+|---|---|
+| 동일한 생성 요청 재시도 | 같은 키와 같은 요청 내용 사용 |
+| 요청 내용을 변경한 새 요청 | 새 키 사용 |
+| 삭제 완료 후 새로 생성 | 새 키 사용 |
+| 타임아웃으로 성공 여부 불명확 | 새 키로 즉시 생성하지 않고 기존 요청 확인 |
+
+현재 테스트에서는 새 생성 요청의 키를 `uuid4()`로 만든다.
+
+다만 스크립트를 다시 실행할 때마다 새 키가 생기므로, 이후 자동 재시도까지 구현하려면 요청 키와 내용을 유지하는 처리가 필요하다.
+
+**중복 검색은 기존 고객을 찾는 기능이고, 멱등성 키는 같은 요청의 재처리를 관리하는 기능이다.**
+
+---
+
+## 💾 7. 고객 성공 결과 저장과 실패 처리
+
+### 원본 CSV 업데이트
+
+`customers_export.csv` 전체를 읽고 원본 `id`가 일치하는 행만 수정한다.
+
+| 컬럼 | 저장 값 |
+|---|---|
+| `square_customer_id` | 생성된 Square 고객 ID |
+| `square_sync_status` | `SUCCESS` |
+| `square_synced_at` | 성공 시각, UTC |
+| `square_sync_error` | 성공 시 비움 |
+
+전송 대상만 저장하지 않고 전체 고객 데이터를 유지한다.
+그렇지 않으면 온라인 가입 고객이 CSV에서 사라질 수 있다.
+
+로컬 CSV 수정은 Lovable DB에 자동 반영되지 않는다.
+
+### CSV 저장 실패 시 처리
+
+고객 생성 성공 후 CSV 업데이트를 시도한다.
+
+- 저장 성공: 작업 완료
+- 저장 실패: 방금 생성한 Square 고객 삭제 시도
+- 삭제까지 실패하거나 결과가 불명확함: 고객 ID와 오류를 남기고 중단
+
+기존 고객 검색으로 찾은 고객에는 이 삭제 처리를 적용하지 않는다.
+
+### 이 처리의 한계
+
+Square 생성과 CSV 저장은 하나의 트랜잭션이 아니다.
+
+삭제는 이미 수행한 작업을 되돌리기 위한 별도 API 요청이며, 이 요청도 실패할 수 있다.
+
+또한 원본 CSV에 직접 덮어쓰는 도중 파일이 손상되면, Square 고객을 삭제해도 CSV가 복구되지는 않는다.
+
+---
+
+## 🏪 8. Store / Order Mapping — 예정
 
 | 원본 값 | 연결 대상 |
 |---|---|
-| 내부 `store_id` | Square Location ID |
+| 내부 매장 ID | Square Location ID |
 | 주문의 `customer_id` | 해당 고객의 Square Customer ID |
-| 주문 항목의 상품 참조 | 해당 상품의 Square Item Variation ID |
+| 주문 항목의 상품 참조 | Square Item Variation ID |
 | 원본 주문 ID | 생성된 Square Order ID |
 
-원본 주문 항목이 상품의 어떤 키를 참조하는지는 실제 CSV 구조를 확인한 후 확정한다.
+주문 전송 전에 상품·매장·필요한 고객의 ID 연결을 준비한다.
 
-주문을 전송하기 전에 상품·고객·매장의 연결 정보를 준비해야 한다.
-
-비회원 주문은 고객 연결 없이 유지한다.
+- 비회원 주문은 고객 연결 없이 유지한다.
+- 온라인 가입 회원의 RETAIL 주문은 해당 고객의 Square 연결 여부를 확인한다.
+- 주문 항목의 원본 상품 참조 키는 실제 CSV를 확인한 후 확정한다.
 
 ---
 
-## 📁 7. 코드 역할
+## 📁 9. 코드 역할
 
 | 경로 | 역할 |
 |---|---|
-| `src/extract/` | CSV 읽기 및 원본 검증 |
+| `src/extract/load_csv.py` | CSV 읽기 |
 | `src/transform/products.py` | 상품 요청 데이터 변환 |
-| `src/square/catalog.py` | 상품 검색·생성·삭제 API, 현재 상품 결과 저장 함수 |
-| `src/pipelines/products_pipeline.py` | 상품 처리 흐름 관리 |
-| `src/transform/customers.py` | 고객 요청 데이터 변환 예정 |
-| `src/square/customers.py` | 고객 API 호출 예정 |
-| `src/pipelines/customers_pipeline.py` | 매장 주문 기준 고객 선택 및 연동 흐름 구성 |
+| `src/square/catalog.py` | 상품 검색·생성·삭제 및 결과 저장 |
+| `src/transform/customers.py` | 고객 요청 데이터 변환 |
+| `src/square/customers.py` | 고객 검색·생성·삭제 및 결과 저장 |
+| `tests/test_customers.py` | 고객 한 명 선택부터 생성·저장까지 수동 확인 |
+| `src/pipelines/customers_pipeline.py` | 전체 POS 고객 처리 흐름으로 확장할 위치 |
+
+현재는 이해하고 관리하기 쉽게 고객 관련 함수를 함께 둔다.
+
+여러 엔티티에서 같은 CSV 저장 로직이 반복되면 공통 함수로 분리하는 것을 검토한다.
 
 ---
 
-## 🧠 8. Mapping을 통해 이해한 점
+## 🧠 10. 작업하면서 배운 점
 
-- 원본과 대상 시스템의 구조는 1:1일 필요가 없다.
-- 하나의 상품 행이 Item과 Variation을 포함한 중첩 구조로 변환될 수 있다.
-- 원본에 없는 필수 값은 변환 과정에서 생성한다.
-- 원본 ID, 로그인 ID, 외부 시스템 ID는 역할이 다르다.
-- 매장 주문 연동 대상은 가입 경로가 아닌 실제 주문 채널로 판단한다.
-- 중복 생성 방지와 기존 ID 매핑 복구는 별개의 작업이다.
-- 로컬 CSV 저장과 원본 DB 업데이트는 별개의 작업이다.
+### 데이터의 의미를 먼저 정해야 한다
 
-> Mapping은 컬럼 이름을 바꾸는 작업뿐 아니라,
-> 데이터의 의미·구조·식별 관계를 대상 시스템에 맞게 연결하는 과정이다.
+가입 경로와 구매 경로는 다르다.
+어떤 데이터를 전송할지는 컬럼의 존재보다 작업 목적을 기준으로 결정해야 한다.
+
+### 원본과 대상 구조는 1:1일 필요가 없다
+
+상품 한 행이 Item과 Variation을 포함한 중첩 구조로 바뀔 수 있다.
+내부 관리용 컬럼은 원본에 유지하고, 대상에 필요한 값은 변환 과정에서 생성한다.
+
+### ID마다 역할이 다르다
+
+원본 고객 ID, 로그인 계정 ID, Square 고객 ID를 구분해야 한다.
+고객 생성 후 ID를 저장해야 이후 주문과 연결할 수 있다.
+
+### 변환과 전송은 별개의 작업이다
+
+`transform_customer()`는 딕셔너리를 만들고,
+`create_customer()`는 HTTP 요청과 응답 확인을 담당한다.
+
+변환 결과를 먼저 출력해보면 API 호출 전에 데이터 구조를 확인할 수 있다.
+
+### 검색 결과 없음과 검색 실패를 구분해야 한다
+
+API 호출 실패를 신규 데이터로 판단하지 않도록 예외 처리해야 한다.
+
+### 중복 검색과 멱등성은 다르다
+
+기존 고객 검색만으로 재시도 문제를 해결할 수는 없다.
+같은 요청을 재시도할 때는 같은 멱등성 키와 요청 내용을 유지해야 한다.
+
+### API 성공 이후에도 실패할 수 있다
+
+외부 시스템 생성과 로컬 저장은 따로 수행된다.
+일부만 성공했을 때의 처리와 복구 한계를 고려해야 한다.
+
+### 현재 규모에 맞게 구현한다
+
+처음부터 파일과 기능을 지나치게 나누기보다,
+현재 흐름을 이해할 수 있는 구조로 구현하고 반복되는 부분을 나중에 정리한다.
+
+> 데이터를 전송하는 것뿐 아니라,
+> 두 시스템의 관계를 유지하고 다음 작업에서 사용할 수 있는 상태로 남기는 것이 중요하다.
