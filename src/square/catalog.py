@@ -289,67 +289,13 @@ Square 상품생성 API response
 }
 """
 
-MAPPING_FILE = Path(
-    "data/processed/product_square_mapping.csv"
-)
 
 
-# # Square API Mapping result 저장 product_square_mapping.csv
-# def save_product_mapping(
-#     product_id: str,
-#     sku: str,
-#     square_catalog_object_id: str | None,
-#     sync_status: str,
-# ) -> None:
-#     new_record = pd.DataFrame(
-#         [
-#             {
-#                 "product_id": product_id,
-#                 "sku": sku,
-#                 "square_catalog_object_id": square_catalog_object_id,
-#                 "square_sync_status": sync_status,
-#                 "square_synced_at": (
-#                     datetime.now(timezone.utc).isoformat()
-#                     if sync_status == "SUCCESS"
-#                     else None
-#                 ),
-#             }
-#         ]
-#     )
-#     print("new_record for syn", new_record)
-#     print("MAPPING_FILE exists T or F >> ", MAPPING_FILE.exists())
-#
-#     if MAPPING_FILE.exists():
-#         existing_df = pd.read_csv(MAPPING_FILE)
-#
-#         mapping_df = pd.concat(
-#             [existing_df, new_record],
-#             ignore_index=True,
-#         )
-#
-#         mapping_df = mapping_df.drop_duplicates(
-#             subset=["product_id"],
-#             keep="last",
-#         )
-#     else:
-#         mapping_df = new_record
-#
-#     MAPPING_FILE.parent.mkdir(
-#         parents=True,
-#         exist_ok=True,
-#     )
-#
-#     mapping_df.to_csv(
-#         MAPPING_FILE,
-#         index=False,
-#     )
-
-
-PRODUCTS_FILE = RAW_DATA_DIR / "products_export.csv"
 
 # 원본 CSV의 실제 구분자와 같아야 함.
 # load_csv()에서 사용하는 구분자를 확인해서 맞춰줘.
 CSV_SEPARATOR = ";"
+PRODUCTS_FILE = RAW_DATA_DIR / "products_export.csv"
 
 def save_product_mapping(
     product_id: str,
