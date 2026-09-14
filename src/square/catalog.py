@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.square.client import headers
+from src.config.paths import RAW_DATA_DIR
 
 # Square > Catalog에 이미 등록된 SKU인지 확인
 def search_product_by_sku(sku):
@@ -196,7 +197,7 @@ def create_product(square_product):
                 sync_status=sync_status,
             )
 
-            print("CSV mapping saved successfully")
+            print("Source product CSV updated successfully")
 
         except Exception as save_error:
             print("CSV mapping save failed:", save_error)
@@ -293,56 +294,147 @@ MAPPING_FILE = Path(
 )
 
 
-# Square API Mapping result 저장 product_square_mapping.csv
+# # Square API Mapping result 저장 product_square_mapping.csv
+# def save_product_mapping(
+#     product_id: str,
+#     sku: str,
+#     square_catalog_object_id: str | None,
+#     sync_status: str,
+# ) -> None:
+#     new_record = pd.DataFrame(
+#         [
+#             {
+#                 "product_id": product_id,
+#                 "sku": sku,
+#                 "square_catalog_object_id": square_catalog_object_id,
+#                 "square_sync_status": sync_status,
+#                 "square_synced_at": (
+#                     datetime.now(timezone.utc).isoformat()
+#                     if sync_status == "SUCCESS"
+#                     else None
+#                 ),
+#             }
+#         ]
+#     )
+#     print("new_record for syn", new_record)
+#     print("MAPPING_FILE exists T or F >> ", MAPPING_FILE.exists())
+#
+#     if MAPPING_FILE.exists():
+#         existing_df = pd.read_csv(MAPPING_FILE)
+#
+#         mapping_df = pd.concat(
+#             [existing_df, new_record],
+#             ignore_index=True,
+#         )
+#
+#         mapping_df = mapping_df.drop_duplicates(
+#             subset=["product_id"],
+#             keep="last",
+#         )
+#     else:
+#         mapping_df = new_record
+#
+#     MAPPING_FILE.parent.mkdir(
+#         parents=True,
+#         exist_ok=True,
+#     )
+#
+#     mapping_df.to_csv(
+#         MAPPING_FILE,
+#         index=False,
+#     )
+
+
+PRODUCTS_FILE = RAW_DATA_DIR / "products_export.csv"
+
+# 원본 CSV의 실제 구분자와 같아야 함.
+# load_csv()에서 사용하는 구분자를 확인해서 맞춰줘.
+CSV_SEPARATOR = ";"
+
 def save_product_mapping(
     product_id: str,
     sku: str,
     square_catalog_object_id: str | None,
     sync_status: str,
 ) -> None:
-    new_record = pd.DataFrame(
-        [
-            {
-                "product_id": product_id,
-                "sku": sku,
-                "square_catalog_object_id": square_catalog_object_id,
-                "square_sync_status": sync_status,
-                "square_synced_at": (
-                    datetime.now(timezone.utc).isoformat()
-                    if sync_status == "SUCCESS"
-                    else None
-                ),
-            }
-        ]
+    # 문자열로 읽어서 상품 코드, 앞자리 0, 빈 값 등을 유지한다.
+    products_df = pd.read_csv(
+        PRODUCTS_FILE,
+        sep=CSV_SEPARATOR,
+        dtype=str,
+        keep_default_na=False,
+        encoding="utf-8-sig",
     )
-    print("new_record for syn", new_record)
-    print("MAPPING_FILE exists T or F >> ", MAPPING_FILE.exists())
 
-    if MAPPING_FILE.exists():
-        existing_df = pd.read_csv(MAPPING_FILE)
-
-        mapping_df = pd.concat(
-            [existing_df, new_record],
-            ignore_index=True,
+    if "sku" not in products_df.columns:
+        raise ValueError(
+            "CSV에 sku 컬럼이 없습니다. 컬럼명과 구분자를 확인하세요."
         )
 
-        mapping_df = mapping_df.drop_duplicates(
-            subset=["product_id"],
-            keep="last",
+    # 업데이트할 상품 찾기
+    matched_rows = products_df["sku"].eq(str(sku))
+    matched_count = int(matched_rows.sum())
+
+    # 없거나 여러 행이면 잘못된 행을 수정하지 않고 중단
+    if matched_count != 1:
+        raise ValueError(
+            f"SKU '{sku}'에 해당하는 행이 {matched_count}개입니다. "
+            "원본 CSV에 정확히 1개 있어야 합니다."
         )
-    else:
-        mapping_df = new_record
 
-    MAPPING_FILE.parent.mkdir(
-        parents=True,
-        exist_ok=True,
+    sync_columns = [
+        "square_catalog_object_id",
+        "square_sync_status",
+        "square_synced_at",
+        "square_sync_error",
+    ]
+
+    # 동기화 컬럼이 없으면 추가
+    for column in sync_columns:
+        if column not in products_df.columns:
+            products_df[column] = ""
+
+    products_df.loc[
+        matched_rows, "square_catalog_object_id"
+    ] = square_catalog_object_id or ""
+
+    products_df.loc[
+        matched_rows, "square_sync_status"
+    ] = sync_status
+
+    if sync_status == "SUCCESS":
+        products_df.loc[
+            matched_rows, "square_synced_at"
+        ] = datetime.now(timezone.utc).isoformat()
+
+        products_df.loc[
+            matched_rows, "square_sync_error"
+        ] = ""
+
+    # 먼저 임시 파일에 저장한 뒤 원본을 교체한다.
+    # 쓰기 도중 실패해서 원본이 일부만 저장되는 상황을 줄인다.
+    temporary_path = PRODUCTS_FILE.with_name(
+        f"{PRODUCTS_FILE.name}.tmp"
     )
 
-    mapping_df.to_csv(
-        MAPPING_FILE,
-        index=False,
-    )
+    try:
+        products_df.to_csv(
+            temporary_path,
+            sep=CSV_SEPARATOR,
+            index=False,
+            encoding="utf-8-sig",
+        )
 
+        temporary_path.replace(PRODUCTS_FILE)
+
+    finally:
+        if temporary_path.exists():
+            temporary_path.unlink()
+
+    print(
+        f"[CSV UPDATED] product_id={product_id}, "
+        f"sku={sku}, status={sync_status}"
+    )
 
 """
     CSV 저장 등 후속 처리에 실패했을 때
