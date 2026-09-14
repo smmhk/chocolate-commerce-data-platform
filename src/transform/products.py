@@ -1,4 +1,5 @@
 #  Lovable 데이터 -> Square API 가 요구하는 데이터형식으로 변화하는 작업 진행
+import json
 import uuid
 
 from src.square.catalog import create_product
@@ -66,8 +67,12 @@ def transform_product(df):
 
     # Dataframe 형식의 row 1건 전달 받음.
 
+    """df는 상품 데이터가 1건이어도 여전히 표(DataFrame) 형태이다.
+    Square JSON에는 표가 아니라 실제 값 하나씩 넣어야 하므로
+    첫 번째 상품 행을 꺼내서 row에 저장한다."""
+
     # Square JSON Mapping
-    row = df.iloc[0]
+    row = df.iloc[0] #한건밖에 없지만 명시적으로 첫번째 행을 뽑아내고
 
     product_id = row["product_id"].lower()
     product_name = row["product_name"]
@@ -105,5 +110,12 @@ def transform_product(df):
         }
     }
 
+    print("square_product (JSON payload for creating products in SQUARE)>>>> ",
+          json.dumps(
+              square_product,
+              indent=2,
+              ensure_ascii=False
+          )
+          )
     create_product(square_product)
     return square_product

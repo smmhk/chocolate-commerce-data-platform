@@ -56,6 +56,8 @@ print(f"Total checked : {total_count}")
 print(f"Already exists: {existing_count}")
 print(f"New products  : {new_count}")
 
+
+
 # 모든 상품 처리가 끝난 후 JSON 파일로 저장
 with open(processed_path, "w", encoding="utf-8") as file:
     json.dump(
