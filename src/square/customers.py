@@ -139,7 +139,7 @@ def update_customer_sync(
         address_mask, "square_customer_id"
     ] = square_customer_id
 
-    # 원본 CSV에 직접 저장
+    # 원본 customers CSV에 직접 저장
     customers_df.to_csv(
         customers_path,
         sep=";",
@@ -147,6 +147,7 @@ def update_customer_sync(
         encoding="utf-8-sig",
     )
 
+    # 원본 customer_addresses CSV에 직접 저장
     addresses_df.to_csv(
         addresses_path,
         sep=";",

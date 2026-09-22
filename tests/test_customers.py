@@ -35,6 +35,19 @@ addresses_df = load_csv(customer_addresses_path)
 print("전체 고객 수:", len(customers_df))
 print("전체 주소 수:", len(addresses_df))
 
+# POS 가입 고객만 선택 — 실제 컬럼명 확인 필요
+customers_df = customers_df[
+    customers_df["signup_channel"]
+    .astype("string")
+    .str.strip()
+    .str.upper()
+    .eq("POS")
+    .fillna(False)
+].copy()
+
+print("전체 중 POS 가입고객 수:", len(customers_df))
+print("전체 중 POS 가입고객주소 수:", len(customers_df))
+
 
 # =========================
 # 2. 테스트 고객 선택
