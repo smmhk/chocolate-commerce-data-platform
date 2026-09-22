@@ -185,7 +185,7 @@ Lovable을 활용하여 온라인 쇼핑몰과 오프라인 매장을 가진 가
 
 ### 🌐 Live Demo
 
-> ### 🍫 [Charlie's Chocolate Factory 방문하기 →](https://choco-magic-shop.lovable.app/)
+> ### 🍫 [Charlie's Chocolate Factory 방문하기 →](https://chocoflavor.dev/)
 >
 > **온라인스토어/POS 를 직접 둘러보고 가상의 초콜릿 리테일 환경을 확인할 수 있습니다.**
 
@@ -334,7 +334,7 @@ Lovable DB의 데이터 구조와 Square API가 요구하는 데이터 구조는
 | Product Name | Item Name |
 | Description | Description |
 | Price | Money / Amount |
-| Category | Category Mapping |
+| Category | Category Mapping — 후속 작업 |
 
 이 과정을 통해 기존 시스템의 데이터를 새로운 시스템에서 사용할 수 있도록 변환하는 **Data Transformation과 Schema Mapping**의 기본 개념을 직접 경험할 수 있었습니다.
 
@@ -379,9 +379,165 @@ Learning Notes에는 전체 코드 대신 **무엇을 했고 왜 그렇게 했�
 
 실제 Python 구현은 아래 소스 코드에서 확인할 수 있습니다.
 
-👉 **[View Python implementation →](./src/square/load_products.py)**
+| 역할 | 소스 코드 |
+|---|---|
+| CSV 읽기 | [load_csv.py](./src/extract/load_csv.py) |
+| 상품 변환 | [products.py](./src/transform/products.py) |
+| 상품 API 연동 | [catalog.py](./src/square/catalog.py) |
+| 고객 API 연동 | [customers.py](./src/square/customers.py) |
+| 매장 API 연동 | [location.py](./src/square/location.py) |
+| 주문 변환 | [orders.py](./src/transform/orders.py) |
+| 주문 API 연동 | [orders.py](./src/square/orders.py) |
+| 주문 단건 테스트 | [test_orders.py](./tests/test_orders.py) |
+| 주문 일괄 처리 | [order_pipeline.py](./src/pipelines/order_pipeline.py) |
 
-> 💡 As I continue developing the project, I plan to separate data extraction, transformation, and Square API integration into smaller modules.
+CSV 읽기, 데이터 변환, API 호출을 역할별로 나누고, pipeline에서 전체 흐름을 실행하도록 구성했습니다.
+
+---
+
+## 5️⃣ Extend Mapping to Customers & Stores
+
+상품 다음으로 고객과 매장 데이터를 Square에 연결했습니다.
+
+| 원본 데이터 | Square 연결 대상 | 진행 내용 |
+|---|---|---|
+| products | Catalog Item / Variation | 상품 생성 및 연동 결과 저장, 전체 상품 생성 테스트 |
+| customers | Customer | POS 가입 고객의 기본 생성 및 고객 ID 저장 |
+| customer_addresses | Customer 연결 정보 | 주소 CSV에 Square 고객 ID 기록, 실제 주소 전송과 구분 |
+| stores | Location | 매장 생성 테스트, 원본 DB와 CSV에 우편번호 반영 완료 |
+
+고객은 `signup_channel = 'POS'`를 기준으로 선택하고, 원본 고객 `id`를 Square의 `reference_id`와 연결했습니다.
+가입 경로와 주문 발생 경로는 다르기 때문에, 온라인 가입 고객의 매장 주문도 이후 고객 연결 여부를 확인해야 합니다.
+
+매장 생성 과정에서는 주소의 `postal_code`가 빠져 있어 **Lovable의 기존 DB를 수정하고, CSV에도 우편번호가 포함되도록 반영**했습니다.
+주문을 생성할 때는 이 매장의 Square Location ID를 찾아 사용합니다.
+
+---
+
+## 6️⃣ Connect Retail Orders to Square
+
+주문은 상품 한 건을 변환하는 것보다 여러 데이터를 함께 확인해야 했습니다.
+**어느 매장에서, 어떤 고객이, 어떤 상품을 몇 개 구매했는지**를 하나의 요청으로 묶는 작업이기 때문입니다.
+
+### 🏪 이번 Square 연동 범위
+
+프로젝트에서는 주문이 크게 두 경로에서 발생한다고 가정했습니다.
+
+| 주문 경로 | 이번 처리 | 향후 분석용 수집 |
+|---|---|---|
+| 매장 주문: RETAIL | Square Sandbox에 가상 매장 거래 준비 | Square API |
+| 온라인 주문: ONLINE | 이번 Square 전송에서 제외 | Lovable DB |
+
+현재 Lovable은 온라인몰과 가상 POS 역할을 모두 합니다.
+Lovable → Square 전송은 매장 데이터 소스를 준비하는 과정이고, 이후에는 **Square의 매장 데이터와 Lovable의 온라인 데이터를 각각 수집해 통합**할 계획입니다.
+Lovable에 남아 있는 RETAIL 주문까지 다시 합치면 같은 거래가 중복 집계되므로 구분해야 합니다.
+
+### 🔑 주문과 주문 항목 연결
+
+첫 테스트 대상으로 `CCF-000004`를 선택했습니다.
+
+```python
+order_df = orders_df.loc[
+    (orders_df["channel"] == "RETAIL")
+    & (orders_df["order_status"] == "COMPLETED")
+    & (orders_df["order_id"] == "CCF-000004")
+].copy()
+```
+
+이번 CSV에서는 **`order_items.order_id`와 `orders.order_id`가 연결**됩니다.
+`orders.id`인 UUID와 연결하는 것이 아니라 `CCF-000004` 같은 주문 번호를 사용합니다.
+
+```mermaid
+erDiagram
+    ORDERS ||--|{ ORDER_ITEMS : "order_id로 연결"
+    ORDERS {
+        string order_id "CCF-000004"
+        string store_id "BUR001"
+        string customer_id "원본 고객 UUID"
+        decimal total_amount "15.23 CAD"
+    }
+    ORDER_ITEMS {
+        string order_id "CCF-000004"
+        string sku "CCF-BAR-002"
+        int quantity "2"
+        decimal unit_price "7.25 CAD"
+        decimal line_total "14.50 CAD"
+    }
+```
+
+그림은 CSV에서 확인한 논리적 관계이며 실제 DB 제약을 표시한 것은 아닙니다.
+같은 상품 2개를 구매했으므로 이번 예시의 주문 항목은 1행이고, `quantity`는 2입니다.
+
+### 🔗 기존 Square ID를 찾아 payload에 연결
+
+주문 CSV의 Square 컬럼은 처음에는 비어 있습니다.
+기존에 연동 결과를 저장한 매장·고객·상품 CSV에서 ID를 찾아 요청에 넣도록 작성했습니다.
+
+| 원본 연결 기준 | 조회할 데이터 | Square 요청 필드 |
+|---|---|---|
+| 주문의 store_id | 매장 CSV의 square_location_id | order.location_id |
+| 주문의 customer_id = 고객 CSV의 id | 고객 CSV의 square_customer_id | order.customer_id |
+| 주문 항목의 sku | 상품 CSV의 square_catalog_object_id — Variation ID | order.line_items[].catalog_object_id |
+| 주문의 order_id | 원본 주문 번호 | order.reference_id |
+| 주문 항목의 id | 원본 항목 UUID | order.line_items[].uid |
+
+상품 한 개의 주문 당시 가격 `7.25 CAD`는 `725`센트로 변환하고, 수량은 문자열 `"2"`로 전달합니다.
+세율은 원본의 `0.0500`을 `"5"`로 변환합니다.
+주문과 항목은 `order`와 그 안의 `line_items`로 묶어 한 번의 생성 요청으로 보냅니다.
+
+### ✅ 생성·검증·저장은 구분한다
+
+주문 변환 함수는 payload를 만들고, API 함수는 Square에 전송한 뒤 응답의 `order` 객체를 반환하도록 작성했습니다.
+그다음 응답의 세금·총액을 원본과 비교하고, 검증에 성공하면 주문·항목 CSV에 Square 연결 정보를 저장합니다.
+
+원본 예시 총액은 `14.50 + 0.73 = 15.23 CAD`입니다.
+Square에서도 반드시 같은 금액이 나온다고 가정하지 않고, 실제 계산 결과를 비교합니다.
+
+| 상태 | 의미 |
+|---|---|
+| 원본 order_status = COMPLETED | Lovable 원본 거래 상태 |
+| Square state = OPEN | 이번 생성 요청에서 지정한 Square 주문 상태 |
+| square_sync_status = SUCCESS | 주문 생성·금액 검증·CSV 저장 성공 |
+
+**주문 생성과 결제 완료는 별개**이므로, 원본의 `COMPLETED`를 Square에 그대로 복사하지 않습니다.
+
+---
+
+## 7️⃣ Expand to an Order Pipeline
+
+단건 테스트 코드 작성 후, 같은 흐름을 여러 주문에 반복 적용하는 `order_pipeline.py`를 작성했습니다.
+
+첨부 CSV 기준 전체 주문은 36건이며, 매장 주문 22건 중 완료된 주문은 19건입니다.
+현재 파이프라인은 **RETAIL이면서 COMPLETED인 주문**을 대상으로 하며, 할인·배송비가 없는 주문을 처리합니다.
+취소·환불 주문은 별도 흐름으로 확장할 예정입니다.
+
+```mermaid
+flowchart TD
+    A[완료된 매장 주문 선택] --> B{기존 연동 성공?}
+    B -->|예| C[건너뛰기]
+    B -->|아니오| D[매장·고객·상품 ID 조회]
+    D --> E[payload 변환 및 기존 요청 비교]
+    E --> F{저장된 생성 응답 존재?}
+    F -->|예| G[보관한 응답 사용]
+    F -->|아니오| H[Square 생성 요청 및 응답 보관]
+    G --> I[연결 정보와 금액 검증]
+    H --> I
+    I --> J[항목 CSV와 주문 CSV 저장]
+```
+
+- 이미 `SUCCESS`이고 Square 주문 ID가 있으면 건너뜁니다.
+- 같은 요청을 다시 실행할 때 같은 멱등성 키와 요청 내용을 유지합니다.
+- 저장된 요청 내용과 새 payload가 다르면 중단합니다.
+- 생성 응답이 남아 있으면 재생성 대신 검증과 저장을 다시 진행합니다.
+- 오류가 발생하면 해당 주문에서 중단하고 원인을 확인합니다.
+- CSV는 임시 파일에 쓴 후 교체하며, 실패한 행을 `FAILED`로 별도 저장하는 기능은 아직 넣지 않았습니다.
+
+두 CSV 저장은 하나의 트랜잭션이 아니므로 항목 CSV만 저장되는 부분 성공이 생길 수 있습니다.
+이때 이미 생성한 Square 주문을 다시 만들지 않고, 보관한 응답을 사용해 저장을 복구하도록 구성했습니다.
+로컬 CSV 수정은 Lovable DB에 자동 반영되지 않습니다.
+
+> 현재 주문 부분은 **변환·API 호출·검증·저장·일괄 처리 코드 작성까지** 기록한 상태입니다.
+> 실제 API 실행 결과와 전체 대상의 성공 건수는 실행 확인 후 추가합니다.
 
 ---
 
@@ -408,6 +564,27 @@ Validate the Result
 ```
 
 이 과정은 앞으로 더 큰 Data Pipeline을 설계하기 위한 기초 단계라고 생각합니다.
+
+주문 작업을 진행하면서는 다음 내용을 추가로 이해했습니다.
+
+- 원본 ID와 Square ID는 다르며, 기존 매핑을 조회해 연결해야 합니다.
+- 주문 전체와 주문 항목은 서로 다른 단위의 데이터입니다.
+- API 생성 성공, 금액 검증 성공, 로컬 저장 성공을 구분해야 합니다.
+- 같은 요청의 재시도와 새로운 주문 생성은 다릅니다.
+- 과거 주문을 재현하면 원본 거래 시각과 Square 생성 시각이 다르므로, 분석용 원본 거래 시각을 보존해야 합니다.
+
+### ☁️ Next: Collect and Integrate the Two Sources
+
+주문·결제 연동을 준비한 뒤에는 Data Engineering Zoomcamp 학습 내용을 적용해 프로젝트를 이어갈 계획입니다.
+
+1. Square 매장 데이터와 Lovable 온라인 데이터를 각각 수집합니다.
+2. GCP·BigQuery에 적재하고 공통 주문·상품·고객 구조로 정제합니다.
+3. dbt 모델링과 데이터 검증을 적용합니다.
+4. 하루 한 번 실행하는 배치 파이프라인으로 자동화합니다.
+5. 채널별 매출·인기 상품·매장별 판매를 비교합니다.
+
+결제, 취소·환불 처리와 GCP 적재는 아직 완료한 작업에 포함하지 않습니다.
+
 ---
 
 ## 🎯 Project Goal
@@ -473,13 +650,13 @@ Validate the Result
 ## 🔗 Project Links
 
 🍫 **Live E-commerce Demo**  
-[Charlie's Chocolate Factory →](https://choco-magic-shop.lovable.app/)
+[Charlie's Chocolate Factory →](https://chocoflavor.dev/)
+
+🏪 **POS Demo**  
+[매장 POS →](https://chocoflavor.dev/pos)
 
 💻 **Data Engineering Repository**  
 현재 보고 있는 GitHub Repository
 
 📝 **Learning Notes**  
 이 프로젝트를 진행하면서 이해한 내용과 기술적인 의사결정을 지속적으로 기록합니다.
-
-
-
