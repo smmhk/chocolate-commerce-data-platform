@@ -1,5 +1,7 @@
 # 🧩 Entity Mapping
 
+> 업데이트: 2026-09-22 · Lovable → Square Sandbox 연동 학습 기록
+
 Lovable 원본 데이터와 Square 데이터를 어떻게 연결하는지 기록한다.
 
 필요한 데이터를 선택하고 Square의 구조로 변환하는 과정과, 구현하면서 배운 점을 함께 정리한다.
@@ -13,7 +15,7 @@ Lovable 원본 데이터와 Square 데이터를 어떻게 연결하는지 기록
 | `products` | Catalog | ✅ 1차 완료 | 상품명·설명·SKU·가격 |
 | `customers` | Customers | ✅ 1차 완료 | POS에서 가입한 고객 |
 | `customer_addresses` | Customer의 `address` | 🟡 고객 ID 연결 처리 통합 | 주소 CSV에 Square 고객 ID 기록, 실제 주소 전송은 별도 |
-| `stores` | Locations | ⚪ 예정 | 내부 매장 ID와 Square Location ID 연결 |
+| `stores` | Locations | ✅ 생성 테스트 완료 | 매장 요청 변환·생성, 원본 DB·CSV 우편번호 반영 완료 |
 | `orders` | Orders | ⚪ 예정 | RETAIL 주문만 전송 |
 | `order_items` | Order line items | ⚪ 예정 | 선택한 RETAIL 주문의 항목 |
 | `payments` | Payments | ⚪ 예정 | 매장 주문의 Sandbox 결제 처리 |
@@ -22,7 +24,8 @@ Lovable 원본 데이터와 Square 데이터를 어떻게 연결하는지 기록
 | `tax_settings` | 직접 연동 제외 | — | 주문에 필요한 세금 처리는 별도 검토 |
 
 상품과 고객의 1차 완료는 기본 생성과 성공 결과 저장을 의미한다.
-기존 정보 수정, 전체 대상의 일괄 처리 및 재실행 안정화는 별도로 확인한다.
+상품 전체 생성은 앞선 테스트에서 완료했다. 기존 정보 수정과 재실행 안정화는 별도로 확인한다.
+매장은 생성 테스트까지 완료했으며, 전체 매장의 ID 저장 결과와 일괄 처리 여부는 별도로 확인한다.
 
 > Lovable의 리워드 기능과 Square Loyalty 연동은 별개의 작업이다.
 
@@ -478,20 +481,84 @@ Square에 고객이 존재하는 것과,
 
 ---
 
-## 🏪 9. Store / Order Mapping — 예정
+## 🏪 9. Store Mapping — 생성 테스트 완료
+
+### 이번에 진행한 작업
+
+상품과 고객 다음으로 Lovable의 매장 데이터를 Square Location 생성 요청으로 변환했다.
+`tests/test_locations.py`에서 payload를 확인하고, `src/square/location.py`의 `create_location()`을 호출하는 흐름으로 테스트했다.
+
+매장 생성 중 HTTP 400 `BAD_REQUEST`를 확인했고, 필수 주소 값과 우편번호를 점검했다.
+
+이후 Lovable의 기존 매장 DB를 수정해 `postal_code`를 추가하고 값을 저장했다.
+CSV에도 우편번호가 포함되도록 반영했으며, 매장 생성 작업을 완료했다.
+
+우편번호는 원본 DB와 CSV에 반영된 값을 사용한다.
+
+### 테스트 요청에서 사용한 매핑
+
+아래 표는 테스트 payload에서 확인한 구조다.
+왼쪽은 원본 값의 의미이며, 실제 CSV 컬럼명은 변환 코드와 맞춰 사용한다.
+
+| 원본 값 또는 설정 | Square 요청 필드 | 처리 |
+|---|---|---|
+| 매장명 | `location.name` | 매장 이름 전달 |
+| 매장 유형 설정 | `location.type` | `PHYSICAL` |
+| 시간대 설정 | `location.timezone` | `America/Vancouver` |
+| 도로명 주소 | `location.address.address_line_1` | 주소 전달 |
+| 도시 | `location.address.locality` | 예: `Vancouver` |
+| 주 | `location.address.administrative_district_level_1` | 예: `BC` |
+| 국가 코드 | `location.address.country` | `CA` |
+| `postal_code` | `location.address.postal_code` | 원본 DB·CSV에 반영한 우편번호 전달 |
+
+이 표는 프로젝트에서 사용하는 필드 정리이며,
+Square API의 전체 필수 항목 목록을 의미하지 않는다.
+
+### 우편번호를 원본 DB와 CSV에 반영한 이유
+
+기존에 확인한 요청에는 매장명·유형·시간대·주소·도시·주·국가가 있었지만 우편번호가 없었다.
+
+기존 DB에 우편번호를 저장하고 CSV에도 포함시켰다.
+이렇게 하면 다음 CSV 추출과 재실행에서도 원본에 저장한 같은 값을 사용할 수 있다.
+
+- 이번 매장과 주소는 개인 프로젝트용 가상 데이터다.
+- 테스트 우편번호를 원본 매장 DB에 저장했다.
+- 형식에 맞는 임의 값이 실제 존재하는 우편번호나 주소 일치를 보장하는 것은 아니다.
+- CSV의 `postal_code` 반영도 완료했다.
+
+### 주문 연동에 필요한 매장 ID 연결
+
+매장 생성 다음에는 원본 매장 ID와 생성된 Square Location ID를 연결해야 한다.
+매장 이름은 표시용으로 두고, 주문 처리에는 ID 매핑을 사용한다.
+
+| 확인할 항목 | 목적 |
+|---|---|
+| 원본 매장 ID ↔ Square Location ID | 주문이 발생한 지점을 연결 |
+| 로컬 CSV의 매핑 저장 여부 | 다음 실행에서도 같은 Location 사용 |
+| 각 테스트 매장의 연결 상태 | 주문을 잘못된 매장으로 전송하지 않도록 확인 |
+| 이미 생성한 매장 처리 | 재실행 시 불필요한 추가 생성 방지 |
+
+매장 생성 성공과 로컬 매핑 저장 완료는 구분해서 확인한다.
+매장 ID 저장 컬럼명과 저장 실패 복구 방식은 별도 확인 항목으로 남긴다.
+
+### 다음 단계: Order / Order Item Mapping
 
 | 원본 값 | 연결 대상 |
 |---|---|
-| 내부 매장 ID | Square Location ID |
+| 주문의 매장 참조 | 해당 매장의 Square Location ID |
 | 주문의 `customer_id` | 해당 고객의 Square Customer ID |
 | 주문 항목의 상품 참조 | Square Item Variation ID |
 | 원본 주문 ID | 생성된 Square Order ID |
 
 주문 전송 전에 상품·매장·필요한 고객의 ID 연결을 준비한다.
 
+- `channel = 'RETAIL'`인 주문만 선택한다.
+- 선택한 주문에 속한 `order_items`를 함께 가져온다.
 - 비회원 주문은 고객 연결 없이 유지한다.
 - 온라인 가입 회원의 RETAIL 주문은 고객 연결 방식을 확인한다.
-- 주문 항목의 원본 상품 참조 키는 실제 CSV를 확인한 후 확정한다.
+- 주문 항목의 원본 상품 참조 키와 매장 참조 키는 실제 CSV를 확인한 후 확정한다.
+- 수량·단가·할인·세금·리워드 사용액을 확인하고 원본 주문 합계와 비교한다.
+- 주문 생성과 결제 처리는 별개로 테스트한다.
 
 ---
 
@@ -506,6 +573,8 @@ Square에 고객이 존재하는 것과,
 | `src/square/customers.py` | 고객 API 함수와 고객·주소 CSV 연결 정보 저장 |
 | `tests/test_customers.py` | 고객 한 명의 생성·결과 저장 확인 |
 | `tests/test_customer_address.py` | 고객과 기본 주소 연결 확인 |
+| `src/square/location.py` | 매장 생성 API 함수 |
+| `tests/test_locations.py` | 매장 payload 확인과 생성 테스트 |
 | `src/pipelines/customers_pipeline.py` | 전체 POS 고객 처리 흐름으로 확장할 위치 |
 
 고객 삭제 함수가 존재하더라도,
@@ -568,11 +637,33 @@ POS 가입 고객과 매장 구매 고객은 서로 다른 대상이다.
 같은 ID를 두 파일에 저장하면 편리하지만 값이 어긋날 수 있다.
 어느 파일을 기준으로 연결할지 정해야 한다.
 
+### 원본 필드가 빠졌다면 원본 구조도 보완한다
+
+매장 생성에서 우편번호를 확인하면서,
+변환 로직뿐 아니라 원본 테이블과 export 파일에도 필요한 값이 있는지 점검해야 한다는 것을 배웠다.
+
+이번에는 기존 DB에 `postal_code`를 추가하고 CSV에도 반영했다.
+DB를 수정해도 기존 로컬 CSV는 자동으로 바뀌지 않으므로 다시 추출한 파일을 확인해야 한다.
+
 ### 현재 규모에 맞게 구현한다
 
 현재 흐름을 이해할 수 있는 구조로 구현하고,
 반복과 복잡성이 실제로 생겼을 때 공통화하거나 분리한다.
 
-> 모든 데이터를 같은 시스템에 넣는 것보다,
-> 필요한 데이터를 선택하고 연결 정보를 유지해
+> 필요한 데이터를 선택하고 연결 정보를 유지해,
 > 이후 통합 분석에 사용할 수 있도록 만드는 것이 중요하다.
+
+---
+
+## ▶️ 12. 다음 작업 순서
+
+1. **매장 연결 마무리** — 우편번호의 DB·CSV 반영은 완료했으므로, 원본 매장 ID ↔ Square Location ID 매핑을 확인한다.
+2. **RETAIL 주문 한 건 선택** — 주문, 주문 항목, 매장, 고객, 상품 데이터를 연결한다.
+3. **주문 payload 변환** — 상품 Variation ID와 수량·금액을 연결하고 원본 합계와 비교한다.
+4. **Square 주문 생성 테스트** — 응답을 확인하고 원본 주문 ID와 Square Order ID를 저장한다.
+5. **Sandbox 결제 테스트** — 생성한 주문과 결제를 연결하는 흐름을 구현한다.
+6. **일괄 처리와 재실행 확인** — 한 건의 흐름이 확인되면 여러 매장의 주문으로 확장한다.
+7. **분석용 수집으로 이동** — Square 매장 데이터와 Lovable 온라인 데이터를 GCP·BigQuery로 수집한다.
+
+현재까지는 **분석에 사용할 가상의 매장 데이터 소스를 준비하는 단계**다.
+주문·결제 연동과 GCP 적재는 아직 완료 항목에 포함하지 않는다.
