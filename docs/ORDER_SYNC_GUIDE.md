@@ -103,41 +103,64 @@ order_items_df["order_id"] == order_df["order_id"].iloc[0]
 | order_items.order_id | 항목이 속한 주문 번호 |
 | orders.square_order_id | Square가 생성 후 반환하는 주문 ID |
 
-## 5. CCF-000004를 실제로 펼쳐 보기
+## 5. 컬럼과 값을 ERD로 읽기 — CCF-000004
 
-### 주문 한 행: order_df
+각 상자의 한 줄은 **자료형 · 컬럼명 · 예시 값** 순서다.
+`ORDERS`는 `order_df`의 한 행, `ORDER_ITEMS`는 `items_df`의 상품 항목을 나타낸다.
+두 상자의 `order_id` 값이 **CCF-000004**로 같아서 연결된다.
 
-| 컬럼 | 값 |
-|---|---|
-| order_id | CCF-000004 |
-| channel | RETAIL |
-| store_id | BUR001 |
-| customer_id | 15c5d45a-de47-4a8b-afc1-946cfbc010af |
-| order_status | COMPLETED |
-| subtotal | 14.50 |
-| discount_amount | 0.00 |
-| tax_rate | 0.0500 |
-| tax_amount | 0.73 |
-| shipping_amount | 0.00 |
-| total_amount | 15.23 |
-| payment_method | DEBIT_CARD |
-| item_count | 2 |
+```mermaid
+erDiagram
+    direction TB
+    ORDERS ||--|{ ORDER_ITEMS : "order_id로 연결"
 
-### 상품 항목 한 행: items_df
+    ORDERS {
+        string id "64f92260-b0a2-48c5-9c80-269750672599"
+        string order_id "CCF-000004 - 항목 연결 기준"
+        string channel "RETAIL"
+        string store_id "BUR001"
+        string customer_id "15c5d45a-de47-4a8b-afc1-946cfbc010af"
+        string order_status "COMPLETED"
+        decimal subtotal "14.50 CAD"
+        decimal discount_amount "0.00 CAD"
+        decimal tax_rate "0.0500 = 5%"
+        decimal tax_amount "0.73 CAD"
+        decimal shipping_amount "0.00 CAD"
+        decimal total_amount "15.23 CAD"
+        string payment_method "DEBIT_CARD"
+        int item_count "2 - 수량 합계"
+    }
 
-| 컬럼 | 값 |
-|---|---|
-| id | 01e9bbfb-9532-45ee-881b-5ca11f532fbb |
-| order_id | CCF-000004 |
-| product_id | P002 |
-| sku | CCF-BAR-002 |
-| product_name | Midnight Dark Chocolate Bar |
-| quantity | 2 |
-| unit_price | 7.25 |
-| line_total | 14.50 |
+    ORDER_ITEMS {
+        string id "01e9bbfb-9532-45ee-881b-5ca11f532fbb"
+        string order_id "CCF-000004 - 위 주문과 같은 값"
+        string store_id "BUR001"
+        string product_id "P002"
+        string sku "CCF-BAR-002"
+        string product_name "Midnight Dark Chocolate Bar"
+        int quantity "2"
+        decimal unit_price "7.25 CAD - 한 개 가격"
+        decimal discount_amount "0.00 CAD"
+        decimal line_total "14.50 CAD - 2개 합계"
+    }
+```
+
+### 그림 읽는 순서
+
+1. **주문 찾기:** ORDERS의 `order_id = CCF-000004`를 찾는다.
+2. **항목 연결:** ORDER_ITEMS에서 같은 `order_id`를 가진 행을 찾는다.
+3. **상품 계산:** `quantity 2 × unit_price 7.25 = line_total 14.50`이다.
+4. **주문 계산:** 이번 주문은 항목 하나이므로 `subtotal = 14.50`이다. 여기에 원본 세금 `0.73`을 더하면 `total_amount = 15.23`이다.
+
+관계선의 `||`는 주문 한 건, `|{`는 한 개 이상의 주문 항목을 뜻한다.
+이번 예시는 항목 한 행이지만, 다른 주문에는 여러 항목이 연결될 수 있다.
 
 **상품 두 개를 샀지만, 같은 상품이므로 항목은 한 행이다.**
 이번 데이터의 `item_count`는 항목 행 수가 아니라 `quantity`의 합계다.
+
+> 자료형은 이해를 돕기 위한 논리적 표시다. CSV나 실제 DB의 자료형·PK·FK 제약을 선언한 것이 아니다.
+> 오른쪽의 CAD와 설명 문구는 주석이며 CSV 값 자체에 포함되지 않는다.
+> 읽기 쉽도록 주요 컬럼만 표시했다. 원본은 주문 35개 컬럼, 주문 항목 14개 컬럼이다.
 
 ## 6. 코드에서 DataFrame이 바뀌는 순서
 
