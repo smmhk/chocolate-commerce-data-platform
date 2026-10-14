@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: chocolate-postgres
+
+    environment:
+      POSTGRES_USER: chocolate
+      POSTGRES_PASSWORD: chocolate123
+      POSTGRES_DB: chocolate_db
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - chocolate_postgres_data:/var/lib/postgresql
+
+volumes:
+  chocolate_postgres_data:
