@@ -70,8 +70,8 @@ def run():
     load_dataframe_to_postgres(
         df=products_df,
         table_name="products",
-        engine=engine,
-        if_exists="replace"
+        engine=engine
+        # , if_exists="replace"
     )
 
 
@@ -85,8 +85,11 @@ def run():
 
     # ONLINE을 통해 가입한 고객만 추출
     online_customers_df = customers_df[
-        customers_df["signup_channel"].str.strip().str.upper() == "ONLINE"
-        ].copy()
+        customers_df["signup_channel"]
+        .str.strip()
+        .str.upper()
+        == "ONLINE"
+    ].copy()
 
     print(
         f"[INFO] online customers rows: "
@@ -96,8 +99,8 @@ def run():
     load_dataframe_to_postgres(
         df=online_customers_df,
         table_name="customers",
-        engine=engine,
-        if_exists="replace"
+        engine=engine
+        # , if_exists="replace"
     )
 
 
@@ -115,9 +118,11 @@ def run():
     # ONLINE 고객들의 ID만 가져오기
     online_customer_ids = online_customers_df["id"]
 
-    # customer_id가 ONLINE 고객 ID에 포함되는 주소만 추출
+    # ONLINE 고객의 주소만 추출
     online_addresses_df = addresses_df[
-        addresses_df["customer_id"].isin(online_customer_ids)
+        addresses_df["customer_id"].isin(
+            online_customer_ids
+        )
     ].copy()
 
     print(
@@ -128,9 +133,10 @@ def run():
     load_dataframe_to_postgres(
         df=online_addresses_df,
         table_name="customer_addresses",
-        engine=engine,
-        if_exists="replace"
+        engine=engine
+        # ,if_exists = "replace"
     )
+
 
     # =====================================================
     # 4. Orders
@@ -145,8 +151,11 @@ def run():
 
     # ONLINE 주문만 추출
     online_orders_df = orders_df[
-        orders_df["channel"].str.strip().str.upper() == "ONLINE"
-        ].copy()
+        orders_df["channel"]
+        .str.strip()
+        .str.upper()
+        == "ONLINE"
+    ].copy()
 
     print(
         f"[INFO] online orders rows: "
@@ -156,9 +165,10 @@ def run():
     load_dataframe_to_postgres(
         df=online_orders_df,
         table_name="orders",
-        engine=engine,
-        if_exists="replace"
+        engine=engine
+        # , if_exists="replace"
     )
+
 
     # =====================================================
     # 5. Order Items
@@ -171,12 +181,15 @@ def run():
         f"{len(order_items_df)}"
     )
 
-    # ONLINE 주문 ID 목록
-    online_order_ids = online_orders_df["id"]
+    # ONLINE 주문의 비즈니스 주문번호 목록
+    # orders.order_id ↔ order_items.order_id
+    online_order_ids = online_orders_df["order_id"]
 
     # ONLINE 주문에 포함된 주문상품만 추출
     online_order_items_df = order_items_df[
-        order_items_df["order_id"].isin(online_order_ids)
+        order_items_df["order_id"].isin(
+            online_order_ids
+        )
     ].copy()
 
     print(
@@ -187,8 +200,8 @@ def run():
     load_dataframe_to_postgres(
         df=online_order_items_df,
         table_name="order_items",
-        engine=engine,
-        if_exists="replace"
+        engine=engine
+        # , if_exists="replace"
     )
 
 
