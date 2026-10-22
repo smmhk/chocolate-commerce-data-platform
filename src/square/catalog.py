@@ -221,9 +221,6 @@ def create_product(square_product):
         print(http_response.json())
 
 
-
-print("\n===== RESULT =====")
-
 """
 Square 상품생성 API response 
 {
@@ -410,3 +407,57 @@ def delete_product(
         "ROLLBACK SUCCESS - Square product deleted:",
         square_item_id,
     )
+
+def list_catalog_items():
+    """Square Sandbox의 상품 목록을 모든 페이지에서 조회한다."""
+
+    url = "https://connect.squareupsandbox.com/v2/catalog/list"
+
+    items = []
+    cursor = None
+    page = 1
+
+    while True:
+        params = {"types": "ITEM"}
+
+        # 두 번째 페이지부터 다음 페이지 위치를 전달
+        if cursor:
+            params["cursor"] = cursor
+
+        response = requests.get(
+            url,
+            headers=headers,
+            params=params,
+            timeout=30,
+        )
+
+        # HTTP 요청 실패 시 여기서 중단
+        response.raise_for_status()
+
+        data = response.json()
+
+        # API 오류가 포함되어 있으면 중단
+        if data.get("errors"):
+            raise RuntimeError(
+                f"Square API 오류: {data['errors']}"
+            )
+
+        page_items = data.get("objects", [])
+        items.extend(page_items)
+
+        print(
+            f"[EXTRACT] page {page}: "
+            f"{len(page_items)} items"
+        )
+
+        cursor = data.get("cursor")
+
+        # 다음 페이지가 없으면 반복 종료
+        if not cursor:
+            break
+
+        page += 1
+
+    print(f"[EXTRACT] total items: {len(items)}")
+
+    return items
