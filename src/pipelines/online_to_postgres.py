@@ -1,49 +1,19 @@
-from pathlib import Path
-
-from src.extract.load_csv import load_csv
+from src.extract.online.load_online_data import load_online_data
+from src.transform.online.filter_online_data import filter_online_data
 from src.load.postgres.connection import get_postgres_engine
 from src.load.postgres.load_table import load_dataframe_to_postgres
 
 
 # =========================================================
-# File Paths
+# PostgreSQL 적재 순서
 # =========================================================
 
-BASE_DIR = Path(__file__).resolve().parents[2]
-
-PRODUCTS_PATH = (
-    BASE_DIR
-    / "data"
-    / "raw"
-    / "products_export.csv"
-)
-
-CUSTOMERS_PATH = (
-    BASE_DIR
-    / "data"
-    / "raw"
-    / "customers_export.csv"
-)
-
-CUSTOMER_ADDRESSES_PATH = (
-    BASE_DIR
-    / "data"
-    / "raw"
-    / "customer_addresses_export.csv"
-)
-
-ORDERS_PATH = (
-    BASE_DIR
-    / "data"
-    / "raw"
-    / "orders_export.csv"
-)
-
-ORDER_ITEMS_PATH = (
-    BASE_DIR
-    / "data"
-    / "raw"
-    / "order_items_export.csv"
+LOAD_ORDER = (
+    "products",
+    "customers",
+    "customer_addresses",
+    "orders",
+    "order_items",
 )
 
 
@@ -52,162 +22,34 @@ ORDER_ITEMS_PATH = (
 # =========================================================
 
 def run():
-
     print("[START] Online → PostgreSQL ingestion")
 
-    # PostgreSQL 연결
+    # 1. Extract: 원본 CSV 5개 읽기
+    source_data = load_online_data()
+
+    # 2. Transform: 온라인 데이터 선별
+    online_data = filter_online_data(source_data)
+
+    # 3. Load: PostgreSQL에 저장
     engine = get_postgres_engine()
 
+    try:
+        for table_name in LOAD_ORDER:
+            df = online_data[table_name]
 
-    # =====================================================
-    # 1. Products
-    # =====================================================
+            load_dataframe_to_postgres(
+                df=df,
+                table_name=table_name,
+                engine=engine,
+            )
 
-    products_df = load_csv(PRODUCTS_PATH)
+            print(
+                f"[LOAD] {table_name} rows: {len(df)}"
+            )
 
-    print(f"[INFO] products rows: {len(products_df)}")
-
-    load_dataframe_to_postgres(
-        df=products_df,
-        table_name="products",
-        engine=engine
-        # , if_exists="replace"
-    )
-
-
-    # =====================================================
-    # 2. Customers
-    # =====================================================
-
-    customers_df = load_csv(CUSTOMERS_PATH)
-
-    print(f"[INFO] total customers rows: {len(customers_df)}")
-
-    # ONLINE을 통해 가입한 고객만 추출
-    online_customers_df = customers_df[
-        customers_df["signup_channel"]
-        .str.strip()
-        .str.upper()
-        == "ONLINE"
-    ].copy()
-
-    print(
-        f"[INFO] online customers rows: "
-        f"{len(online_customers_df)}"
-    )
-
-    load_dataframe_to_postgres(
-        df=online_customers_df,
-        table_name="customers",
-        engine=engine
-        # , if_exists="replace"
-    )
-
-
-    # =====================================================
-    # 3. Customer Addresses
-    # =====================================================
-
-    addresses_df = load_csv(CUSTOMER_ADDRESSES_PATH)
-
-    print(
-        f"[INFO] total customer addresses rows: "
-        f"{len(addresses_df)}"
-    )
-
-    # ONLINE 고객들의 ID만 가져오기
-    online_customer_ids = online_customers_df["id"]
-
-    # ONLINE 고객의 주소만 추출
-    online_addresses_df = addresses_df[
-        addresses_df["customer_id"].isin(
-            online_customer_ids
-        )
-    ].copy()
-
-    print(
-        f"[INFO] online customer addresses rows: "
-        f"{len(online_addresses_df)}"
-    )
-
-    load_dataframe_to_postgres(
-        df=online_addresses_df,
-        table_name="customer_addresses",
-        engine=engine
-        # ,if_exists = "replace"
-    )
-
-
-    # =====================================================
-    # 4. Orders
-    # =====================================================
-
-    orders_df = load_csv(ORDERS_PATH)
-
-    print(
-        f"[INFO] total orders rows: "
-        f"{len(orders_df)}"
-    )
-
-    # ONLINE 주문만 추출
-    online_orders_df = orders_df[
-        orders_df["channel"]
-        .str.strip()
-        .str.upper()
-        == "ONLINE"
-    ].copy()
-
-    print(
-        f"[INFO] online orders rows: "
-        f"{len(online_orders_df)}"
-    )
-
-    load_dataframe_to_postgres(
-        df=online_orders_df,
-        table_name="orders",
-        engine=engine
-        # , if_exists="replace"
-    )
-
-
-    # =====================================================
-    # 5. Order Items
-    # =====================================================
-
-    order_items_df = load_csv(ORDER_ITEMS_PATH)
-
-    print(
-        f"[INFO] total order items rows: "
-        f"{len(order_items_df)}"
-    )
-
-    # ONLINE 주문의 비즈니스 주문번호 목록
-    # orders.order_id ↔ order_items.order_id
-    online_order_ids = online_orders_df["order_id"]
-
-    # ONLINE 주문에 포함된 주문상품만 추출
-    online_order_items_df = order_items_df[
-        order_items_df["order_id"].isin(
-            online_order_ids
-        )
-    ].copy()
-
-    print(
-        f"[INFO] online order items rows: "
-        f"{len(online_order_items_df)}"
-    )
-
-    load_dataframe_to_postgres(
-        df=online_order_items_df,
-        table_name="order_items",
-        engine=engine
-        # , if_exists="replace"
-    )
-
-
-    # =====================================================
-    # Done
-    # =====================================================
+    finally:
+        # 성공 또는 오류 여부와 관계없이 연결 풀 정리
+        engine.dispose()
 
     print("[DONE] Online → PostgreSQL ingestion")
 
