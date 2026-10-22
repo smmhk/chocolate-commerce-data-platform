@@ -1,9 +1,9 @@
-# 🚚 Phase 2 — Online → PostgreSQL Data Ingestion
+# 🚚 Phase 2 — Online & Square → PostgreSQL Data Ingestion
 
-> 업데이트: 2026-10-22 · 온라인 적재 및 리팩토링 반영 · 다음 작업: Square API 수집
+> 업데이트: 2026-10-22 · 온라인 리팩토링 및 Square 상품·고객·주문 수집 반영 · 매장 적재 코드 작성
 
 이 문서는 **Charlie’s Chocolate Factory — Omnichannel Retail Data Platform** 프로젝트의 Phase 2에서 구현한  
-**Online Store 데이터 → PostgreSQL 적재 과정**을 정리한 문서이다.
+**Online CSV 및 Square API 데이터 → PostgreSQL 적재 과정**을 정리한 문서이다.
 
 나중에 프로젝트를 다시 열었을 때도
 
@@ -14,7 +14,9 @@
 - Python Pipeline이 어떻게 동작하는지
 - Extract / Transform / Load를 왜 분리했는지
 - 저장 스키마 문제를 어떻게 해결했는지
-- 다음 Square 수집 단계로 어떻게 이어지는지
+- Square API 응답을 JSONB로 저장하는 방법
+- 온라인과 Square의 적재 방식이 다른 이유
+- 현재 확인된 결과와 남은 작업
 
 를 쉽게 이해할 수 있도록 기록한다.
 
@@ -31,7 +33,7 @@ Phase 1에서는 실제 리테일 환경을 시뮬레이션하기 위해 다음 
 
 Phase 2에서는 각 Source System에서 발생한 데이터를 Data Platform으로 수집한다.
 
-이번 작업에서는 먼저 **Online Channel 데이터**를 대상으로 Local PostgreSQL ingestion pipeline을 구현했다.
+먼저 **Online Channel 데이터**를 대상으로 로컬 적재 파이프라인을 구현했고, 이어서 **Square 상품·고객·주문 API 수집 및 저장**을 진행했다. 매장 수집·저장 코드는 작성했으며 실행·저장 확인은 아직 공유되지 않았다.
 
 **흐름:** Online Store → CSV Export → Python / Pandas → ONLINE Data Filtering → PostgreSQL → SQL Validation
 
@@ -73,6 +75,7 @@ flowchart TD
         DB
     end
     DB --> R["raw_online 테이블"]
+    DB --> S["raw_square 테이블"]
 ```
 
 Python과 DBeaver는 각각 PostgreSQL에 연결한다. Python이 DBeaver를 거쳐 적재하는 것은 아니다. 컨테이너 재생성 시 데이터 보존 방식은 `docker-compose.yml`의 볼륨 설정을 확인한다. 이미지 버전·컨테이너 이름·볼륨 값은 이 문서에서 임의로 지정하지 않는다.
@@ -118,6 +121,13 @@ chocolate-commerce-data-platform/
 │       └── order_items_export.csv
 │
 ├── src/
+│   ├── square/
+│   │   ├── client.py
+│   │   ├── catalog.py
+│   │   ├── customers.py
+│   │   ├── orders.py
+│   │   └── location.py
+│   │
 │   ├── extract/
 │   │   ├── load_csv.py
 │   │   └── online/
@@ -132,14 +142,26 @@ chocolate-commerce-data-platform/
 │   ├── load/
 │   │   └── postgres/
 │   │       ├── connection.py
-│   │       └── load_table.py
+│   │       ├── load_table.py
+│   │       ├── load_square_catalog.py
+│   │       ├── load_square_customers.py
+│   │       ├── load_square_orders.py
+│   │       └── load_square_locations.py
 │   │
 │   └── pipelines/
-│       └── online_to_postgres.py
+│       ├── online_to_postgres.py
+│       ├── inspect_square_catalog.py
+│       ├── inspect_square_customers.py
+│       ├── inspect_square_orders.py
+│       ├── square_catalog_to_postgres.py
+│       ├── square_customers_to_postgres.py
+│       ├── square_orders_to_postgres.py
+│       └── square_locations_to_postgres.py
 │
 ├── sql/
 │   ├── schema/
-│   │   └── create_raw_online_tables.sql
+│   │   ├── create_raw_online_tables.sql
+│   │   └── create_raw_square_tables.sql
 │   │
 │   └── validation/
 │       └── validate_online_ingestion.sql
@@ -678,12 +700,12 @@ SELECT 'order_items', COUNT(*) FROM raw_online.order_items;
 
 ## Online / Retail 데이터를 분리한다
 
-최종 프로젝트에서는 Online Channel과 Square POS 데이터를 처음부터 섞지 않는다.
+최종 프로젝트에서는 온라인 CSV와 Square API 데이터를 출처별로 나누어 저장한다. Square의 상품·고객은 공통 마스터일 수 있으므로, Square에서 조회됐다는 이유만으로 오프라인 전용 데이터라고 분류하지 않는다.
 
 | 원천 | 저장 구역 |
 |---|---|
 | ONLINE | raw_online |
-| RETAIL / Square | raw_square (예정) |
+| Square API | raw_square |
 
 나중에 BigQuery Transformation 단계에서 두 데이터를 통합한다.
 
@@ -737,39 +759,401 @@ PostgreSQL은 Local Data Engineering 환경이다.
 
 ---
 
-# 18. ▶️ 다음 단계 — Square API Extraction
+# 18. 🔌 Square API 수집 — 이전 작업과의 차이
 
-**Pipeline 리팩토링은 완료했다. 다음은 Square Sandbox에 저장된 데이터를 조회해 수집하는 단계다.**
+이전에 만든 코드는 CSV 데이터를 Square에 **등록**했다. 이번에는 외부 원천 시스템 역할을 하는 Square에서 데이터를 **조회해 우리 DB로 가져온다.**
 
-| 구분 | 이전 Square 작업 | 다음 Square 작업 |
+| 구분 | Phase 1: 데이터 준비 | Phase 2: 데이터 수집 |
 |---|---|---|
-| 방향 | 시뮬레이션 데이터 → Square | Square → Python → PostgreSQL |
-| 목적 | 오프라인 원천 시스템에 데이터 준비 | 외부 시스템에서 분석용 데이터 수집 |
+| 방향 | CSV → Python → Square | Square → Python → PostgreSQL |
+| 주요 함수 | create_product / create_customer / create_order | list_catalog_items / list_customers / search_orders |
+| 목적 | 테스트용 원천 시스템 구성 | 분석 플랫폼에 원천 데이터 수집 |
 
-처음에는 상품 데이터부터 진행한다.
+`src/square/client.py`는 `.env`에서 `SQUARE_ACCESS_TOKEN`을 읽고 공통 headers를 만든다. 이 프로젝트에서 사용 중인 `Square-Version` 값은 `2026-08-19`다. 토큰 자체는 문서와 Git에 기록하지 않는다.
 
-1. 기존 `src/square/client.py`와 `src/square/catalog.py` 확인
-2. Square 상품 목록 조회 구현 및 페이지네이션 처리 확인
-3. 실제 응답에서 상품·변형·SKU·가격 구조 확인
-4. 응답 구조에 맞춰 `raw_square` 저장 테이블 설계
-5. 상품 데이터 적재와 검증
-6. 고객·주문 등으로 수집 범위 확장
+상품·고객·주문·매장 파일은 공통 headers를 가져와 `requests`로 Sandbox API를 호출한다. 공통 설정을 import하는 것만으로 API가 호출되는 것은 아니다.
 
-`raw_square`는 다음 단계의 목적지 계획이다. 아직 생성·적재가 완료된 것으로 표시하지 않는다. 전체 Square 주문 연동 완료 여부도 해당 작업을 시작하기 전에 확인한다.
+| 대상 | 요청 | 함수 | 목록을 꺼내는 응답 키 |
+|---|---|---|---|
+| 상품 | GET /v2/catalog/list, types=ITEM | list_catalog_items() | objects |
+| 고객 | GET /v2/customers | list_customers() | customers |
+| 주문 | POST /v2/orders/search | search_orders(location_ids) | orders |
+| 매장 | GET /v2/locations | list_locations() | locations |
 
-이후 클라우드 수집 환경과 모델링으로 확장한다.
+현재 함수 위치는 각각 `src/square/catalog.py`, `customers.py`, `orders.py`, **`location.py`**다. 매장 파일명은 `locations.py`가 아니다.
 
-| 단계 | 상태 및 방향 |
-|---|---|
-| Phase 1 — Source System Simulation | 온라인 스토어·POS/Square 환경을 기반으로 진행. 전체 세부 연동 완료 여부는 별도 확인 |
-| Phase 2 — Online → PostgreSQL | 적재 확인 및 리팩토링 완료, 검증 결과 최종 대조 |
-| Phase 2 — Square API → raw_square | **다음 작업** |
-| Phase 2 — GCP / GCS / BigQuery Raw | 예정 |
-| Phase 3 — Transformation & Modeling | 온라인·오프라인 정제·표준화·통합 모델 예정 |
-| Phase 4 — Analytics & BI | 통합 데이터를 활용한 분석 및 Power BI 예정 |
+## 페이지네이션과 오류 처리
+
+상품·고객·주문 조회 함수는 다음 순서로 동작한다.
+
+1. 첫 페이지를 요청한다.
+2. 응답의 목록을 Python 리스트에 추가한다.
+3. `cursor`가 있으면 다음 요청에 넣어 반복한다.
+4. `cursor`가 없으면 전체 목록을 반환한다.
+
+상품·고객은 query parameter인 `params`, 주문 검색은 JSON 요청 본문인 `json=body`에 cursor를 넣는다. 현재 데이터는 모두 첫 페이지에서 조회됐으므로, 여러 페이지를 실제로 처리한 결과까지 검증된 것은 아니다.
+
+요청에는 `timeout=30`을 지정하고 HTTP 실패 및 응답의 `errors`를 확인한다. 현재 자동 재시도·정기 스케줄 실행은 구현하지 않았다.
 
 ---
 
-# 🎯 현재 위치
+# 19. 🔍 저장 전 Inspect — 응답 구조 확인
 
-**온라인 CSV를 로컬 PostgreSQL의 raw_online에 적재하고, 읽기·필터링·저장 역할을 분리했다. 저장 스키마 누락 문제도 수정했으며, 다음은 Square의 상품 데이터를 조회하는 작업이다.**
+처음부터 테이블 컬럼을 추측하지 않고 조회 전용 파일에서 응답을 확인했다.
+
+```powershell
+python -m src.pipelines.inspect_square_catalog
+python -m src.pipelines.inspect_square_customers
+python -m src.pipelines.inspect_square_orders
+```
+
+이 파일들은 첫 객체의 JSON과 전체 요약을 출력한다. PostgreSQL 적재는 별도의 `*_to_postgres.py`가 담당한다.
+
+## 상품: ITEM 안에 ITEM_VARIATION이 포함됨
+
+```text
+ITEM: 상품 ID, 상품명, 설명
+└── item_data.variations[]
+    └── ITEM_VARIATION: 판매 단위 ID, SKU, 가격, 통화
+```
+
+실제 첫 상품은 Midnight Dark Chocolate Bar이며 SKU는 `CCF-BAR-002`, 가격 amount는 `725`, currency는 `CAD`였다. 이 금액은 CAD $7.25다.
+
+조회 결과 ITEM 15개, 출력상 각 ITEM에 variation 1개가 있었다. 현재 저장 단위는 ITEM이므로 상품 테이블은 15행이며, variation은 각 행의 JSON 안에 보관한다.
+
+## 고객: 원본 ID 및 주소 포함
+
+고객 20명이 조회됐다. `id`는 Square 고객 ID이고 `reference_id`는 생성 시 전달했던 원본 고객 ID다. `address`는 고객 JSON 안에 포함되어 별도 주소 테이블 없이 원본을 저장한다.
+
+온라인 파이프라인은 온라인 가입 고객 10명을 선별하지만 Square 조회는 계정에 등록된 고객 전체를 가져온다. 두 수가 다르다고 오류는 아니다. 가입 채널은 이후 원본 고객 데이터와 연결해 판단한다.
+
+## 주문: 매장 ID를 먼저 조회
+
+주문 검색에는 Square location ID가 필요하다. 기존 `list_locations()`로 매장 목록을 가져와 각 매장의 `id`를 `search_orders(location_ids=[location_id])`에 전달했다. 수동 ID 입력 대신 기존 코드를 재사용했다.
+
+| 매장 | Square location ID | 조회 주문 수 |
+|---|---|---:|
+| Downtown Vancouver, 하이픈 이름 | L5N7N1ZAC22HV | 0 |
+| Burnaby | LYSETCR8T15WQ | 8 |
+| Downtown Vancouver, 긴 대시 이름 | L58P4HAMZ94P8 | 5 |
+| Richmond | LQGF9X19AWAD3 | 6 |
+| Default Test Account | L88A1JW54Y3RK | 0 |
+| 합계 | | 19 |
+
+이름이 비슷한 Downtown 매장도 ID가 다르므로 별도 매장이다. 현재는 임의로 합치거나 삭제하지 않았다.
+
+주문에는 `id`, `reference_id`(예: CCF-000022), `location_id`, `customer_id`, `line_items`, 세금 및 금액 정보가 포함됐다. `line_items[].catalog_object_id`는 상품 ITEM ID가 아니라 판매 단위인 **variation ID**와 연결된다.
+
+**중요: 조회한 주문 19건은 모두 OPEN이었다.** 원본 상태 그대로 저장했으며 완료된 매출이라고 간주하지 않는다. CSV에서 완료 주문을 골라 Square로 보냈더라도 Square에서 반환되는 상태가 동일하다고 단정할 수 없다. 원인 확인은 기존 주문 생성 payload·응답과 결제 처리 흐름을 확인하는 별도 작업이다.
+
+공유된 요약의 주문상품 합계는 47행이다. 이는 `line_items` 요소 수이며 판매 수량 합계가 아니다.
+
+---
+
+# 20. 🗃️ raw_square 테이블 — JSONB 원본 저장
+
+온라인 CSV는 처음부터 표 형태지만 Square 응답은 주소·variation·주문상품처럼 중첩된 JSON이다. 이번에는 필드를 모두 펼치지 않고 JSONB 컬럼에 저장한다.
+
+| 컬럼 | 역할 |
+|---|---|
+| Square ID 기본 키 | 원천 시스템의 객체 식별자 |
+| payload JSONB | 반환된 객체 전체와 하위 배열·객체 |
+| ingested_at TIMESTAMPTZ | 우리 DB에서 해당 객체를 마지막으로 적재한 시각 |
+
+`ingested_at`은 Square에서 생성된 시각이 아니다. 원천의 `created_at`, `updated_at`은 payload에 보존된다. JSONB는 JSON의 구조와 값을 저장하지만 응답 원문의 공백·키 순서·원본 바이트를 그대로 보관하는 형식은 아니다.
+
+아래 SQL은 `sql/schema/create_raw_square_tables.sql`에 보관하고 DBeaver의 `chocolate_db` 연결에서 실행한다. 파일을 저장하는 것과 DB에 실행하는 것은 별개다. 수동 커밋 모드라면 실행 후 Commit한다.
+
+```sql
+CREATE SCHEMA IF NOT EXISTS raw_square;
+
+CREATE TABLE IF NOT EXISTS raw_square.catalog_objects (
+    square_object_id TEXT PRIMARY KEY,
+    object_type TEXT NOT NULL,
+    payload JSONB NOT NULL,
+    ingested_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS raw_square.customers (
+    square_customer_id TEXT PRIMARY KEY,
+    payload JSONB NOT NULL,
+    ingested_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS raw_square.orders (
+    square_order_id TEXT PRIMARY KEY,
+    payload JSONB NOT NULL,
+    ingested_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS raw_square.locations (
+    square_location_id TEXT PRIMARY KEY,
+    payload JSONB NOT NULL,
+    ingested_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+`IF NOT EXISTS`는 없는 테이블을 생성할 뿐, 기존 테이블의 컬럼 구조를 수정하지는 않는다.
+
+---
+
+# 21. 📥 Square 적재 함수 — Upsert와 트랜잭션
+
+| 파일 | 적재 함수 | 테이블 |
+|---|---|---|
+| src/load/postgres/load_square_catalog.py | load_square_catalog(items, engine) | raw_square.catalog_objects |
+| src/load/postgres/load_square_customers.py | load_square_customers(customers, engine) | raw_square.customers |
+| src/load/postgres/load_square_orders.py | load_square_orders(orders, engine) | raw_square.orders |
+| src/load/postgres/load_square_locations.py | load_square_locations(locations, engine) | raw_square.locations |
+
+네 함수는 JSON 객체를 `json.dumps(..., ensure_ascii=False)`로 직렬화하고, SQLAlchemy의 바인딩 파라미터로 SQL에 전달한다. PostgreSQL에서는 `CAST(:payload AS JSONB)`로 변환한다.
+
+대표 예시인 고객 적재 코드:
+
+```python
+import json
+
+from sqlalchemy import text
+from sqlalchemy.engine import Engine
+
+
+def load_square_customers(customers: list[dict], engine: Engine) -> None:
+    if not customers:
+        print("[LOAD] 저장할 Square 고객이 없습니다.")
+        return
+
+    query = text("""
+        INSERT INTO raw_square.customers (
+            square_customer_id, payload, ingested_at
+        )
+        VALUES (
+            :square_customer_id,
+            CAST(:payload AS JSONB),
+            CURRENT_TIMESTAMP
+        )
+        ON CONFLICT (square_customer_id)
+        DO UPDATE SET
+            payload = EXCLUDED.payload,
+            ingested_at = EXCLUDED.ingested_at
+    """)
+
+    rows = [
+        {
+            "square_customer_id": customer["id"],
+            "payload": json.dumps(customer, ensure_ascii=False),
+        }
+        for customer in customers
+    ]
+
+    with engine.begin() as connection:
+        connection.execute(query, rows)
+
+    print(
+        "[SUCCESS] raw_square.customers "
+        f"upsert completed ({len(rows)} customers)"
+    )
+```
+
+`ON CONFLICT`는 같은 기본 키가 이미 있으면 UPDATE하도록 한다. `EXCLUDED`는 이번에 넣으려던 새 값을 뜻한다.
+
+| 상황 | 동작 |
+|---|---|
+| 새로운 Square ID | INSERT |
+| 이미 저장된 Square ID | payload와 ingested_at UPDATE |
+| 동일 입력 재실행 | 같은 ID의 행 수는 증가하지 않음 |
+| 이번 응답에 없는 기존 객체 | DB에 그대로 남음 |
+| 빈 목록 | 적재 건너뛰기, 기존 행 유지 |
+| 적재 중 오류 | 해당 함수 트랜잭션의 변경 롤백 |
+
+전체 목록을 매번 조회해 Upsert하는 방식이다. 시간 기준 증분 수집이나 변경 이력 누적은 아직 아니다. 성공 로그의 건수는 처리한 객체 수이며 새로 INSERT된 행 수만 의미하지 않는다.
+
+## 온라인 적재와 비교
+
+| 항목 | raw_online | raw_square |
+|---|---|---|
+| 입력 | CSV → DataFrame | API → dict 리스트 |
+| 저장 형식 | 원본 컬럼 중심의 관계형 테이블 | ID + JSONB + 수집 시각 |
+| 기존 행 처리 | 테이블별 DELETE + APPEND | ID별 UPSERT |
+| 소스에서 사라진 행 | 현재 선택 데이터로 전체 교체 | 자동 삭제되지 않음 |
+| 이력 | 누적 보존하지 않음 | 최신 적재 값으로 갱신, 이력 누적 없음 |
+| 트랜잭션 | 테이블 하나 | 적재 함수 한 번의 전체 객체 목록 |
+
+기존 `load_table.py`는 raw_online 전용이므로 Square 적재에 사용하지 않았다.
+
+---
+
+# 22. ▶️ 실행 파이프라인
+
+파이프라인은 조회 함수와 적재 함수를 연결한다. API 통신은 `src/square/`, DB 저장은 `src/load/postgres/`, 실행 순서는 `src/pipelines/`가 담당한다.
+
+대표 매장 파이프라인:
+
+```python
+from src.square.location import list_locations
+from src.load.postgres.connection import get_postgres_engine
+from src.load.postgres.load_square_locations import load_square_locations
+
+
+def run():
+    print("[START] Square locations → PostgreSQL ingestion")
+    locations = list_locations()
+    print(f"[EXTRACT] total locations: {len(locations)}")
+
+    engine = get_postgres_engine()
+    try:
+        load_square_locations(locations=locations, engine=engine)
+    finally:
+        engine.dispose()
+
+    print("[DONE] Square locations → PostgreSQL ingestion")
+
+
+if __name__ == "__main__":
+    run()
+```
+
+주문 파이프라인은 매장 목록 조회 → 매장별 주문 조회 → 전체 주문 리스트 생성 → 주문 Upsert 순서다. 현재 모든 매장 조회가 끝난 뒤 적재를 시작하므로 조회 도중 오류가 나면 주문 DB 적재를 시작하지 않는다.
+
+상품·고객·주문·매장은 각각 별도 실행이며 네 테이블을 하나의 트랜잭션으로 묶은 구조는 아니다. `engine.dispose()`는 연결 풀 정리이며 커밋은 `engine.begin()`이 담당한다.
+
+프로젝트 루트에서 가상환경을 활성화하고 PostgreSQL 컨테이너가 실행 중인 상태로 실행한다.
+
+```powershell
+python -m src.pipelines.square_catalog_to_postgres
+python -m src.pipelines.square_customers_to_postgres
+python -m src.pipelines.square_orders_to_postgres
+python -m src.pipelines.square_locations_to_postgres
+```
+
+이 명령은 각 파이프라인을 실행하는 방법이다. 매장 파이프라인은 이번 대화에서 코드만 전달했으며 실제 실행 성공은 아직 확인되지 않았다.
+
+---
+
+# 23. 🔎 Square 저장 검증 SQL
+
+아래 쿼리는 `sql/validation/validate_square_ingestion.sql`로 저장해 재사용할 수 있다. 이 검증 파일의 실제 생성·전체 실행 결과는 아직 확인되지 않았다.
+
+## 테이블별 행 수
+
+매장 테이블까지 준비한 뒤 실행한다.
+
+```sql
+SELECT 'catalog_objects' AS table_name, COUNT(*) AS row_count
+FROM raw_square.catalog_objects
+UNION ALL
+SELECT 'customers', COUNT(*) FROM raw_square.customers
+UNION ALL
+SELECT 'orders', COUNT(*) FROM raw_square.orders
+UNION ALL
+SELECT 'locations', COUNT(*) FROM raw_square.locations;
+```
+
+현재 소스가 그대로이고 기존 잔여 객체가 없다면 예상은 상품 15, 고객 20, 주문 19, 매장 5다. Upsert는 오래된 행을 자동 삭제하지 않으므로 향후 API 조회 수와 DB 행 수가 항상 같다고 보장하지 않는다.
+
+## JSON에서 필요한 값 꺼내기
+
+`->`는 JSON 값을 반환하고 `->>`는 텍스트를 반환한다.
+
+```sql
+SELECT
+    square_object_id,
+    payload -> 'item_data' ->> 'name' AS product_name
+FROM raw_square.catalog_objects;
+
+SELECT
+    square_customer_id,
+    payload ->> 'reference_id' AS source_customer_id
+FROM raw_square.customers;
+
+SELECT
+    payload ->> 'state' AS order_state,
+    COUNT(*) AS order_count
+FROM raw_square.orders
+GROUP BY payload ->> 'state';
+
+SELECT
+    SUM(jsonb_array_length(payload -> 'line_items')) AS line_item_count
+FROM raw_square.orders;
+```
+
+조회 로그 기준 주문 상태는 OPEN 19건, 주문상품은 47행이다. 이는 DB 검증 쿼리 결과를 공유받은 것과는 구분한다.
+
+## 주문과 매장 연결 검사
+
+```sql
+-- 예상: 0행
+SELECT
+    o.square_order_id,
+    o.payload ->> 'location_id' AS missing_location_id
+FROM raw_square.orders AS o
+LEFT JOIN raw_square.locations AS l
+    ON o.payload ->> 'location_id' = l.square_location_id
+WHERE l.square_location_id IS NULL;
+```
+
+0행이면 저장된 주문의 매장 ID가 매장 테이블에 모두 있다는 뜻이다. 전체 원본 대비 주문 누락까지 보장하지는 않는다.
+
+## 주문과 고객 연결 검사
+
+고객 없는 주문도 있을 수 있으므로 customer_id가 기록된 주문만 검사한다.
+
+```sql
+-- 예상: 0행. 결과가 있으면 고객 수집 범위 또는 원본 연결 확인
+SELECT
+    o.square_order_id,
+    o.payload ->> 'customer_id' AS missing_customer_id
+FROM raw_square.orders AS o
+LEFT JOIN raw_square.customers AS c
+    ON o.payload ->> 'customer_id' = c.square_customer_id
+WHERE NULLIF(o.payload ->> 'customer_id', '') IS NOT NULL
+  AND c.square_customer_id IS NULL;
+```
+
+---
+
+# 24. 🛠️ 이번에 해결한 오류
+
+| 오류·상황 | 의미 | 해결 |
+|---|---|---|
+| cannot import name list_catalog_items | catalog.py에서 해당 함수를 가져오지 못함 | 함수 추가·이름·들여쓰기·문자열 밖 위치 확인 후 저장 |
+| cannot import name search_orders | orders.py에서 조회 함수를 가져오지 못함 | create_order와 별도로 최상위에 search_orders 추가 |
+| relation raw_square.customers does not exist | Python이 연결한 DB에서 고객 테이블을 찾지 못함 | DBeaver에서 생성 SQL 실행, 필요시 커밋 후 재실행 |
+
+ImportError는 API 호출 전 단계에서 발생한 문제였다. 고객 테이블 오류에서는 API 조회 20명은 성공했지만 DB 적재가 중단됐으며, 테이블 준비 후 재실행해 성공 로그를 확인했다.
+
+연결 대상과 테이블 존재 여부는 다음처럼 확인할 수 있다.
+
+```sql
+SELECT
+    current_database() AS database_name,
+    to_regclass('raw_square.customers') AS customer_table;
+```
+
+로그 출력뿐 아니라 실제 DB의 스키마·테이블·행 수도 확인한다.
+
+---
+
+# 25. ✅ 현재 위치와 다음 작업
+
+| 항목 | 현재 확인 상태 |
+|---|---|
+| 온라인 CSV → raw_online | 사용자 저장 확인, 리팩토링 완료 |
+| Square 상품 | API 15개 조회, 사용자 DB 저장 확인 |
+| Square 고객 | API 20명 조회, 20명 Upsert 성공 로그 확인 |
+| Square 주문 | API 19건 조회, 사용자 DB 저장 확인 |
+| Square 매장 | API 5곳 조회 확인, 생성 SQL·적재 코드 전달. 실행·저장 확인 대기 |
+| 전체 검증 SQL | 쿼리 제시, 모든 검사 통과 여부는 확인 전 |
+| GCP / GCS / BigQuery Raw | 예정 |
+| Phase 3 — Transformation & Modeling | 예정 |
+| Phase 4 — Analytics & BI | 예정 |
+
+다음 순서로 진행한다.
+
+1. 매장 파이프라인 실행 및 DB 5행 확인.
+2. 주문–매장·주문–고객 연결 및 각 테이블 행 수 검증.
+3. Square 주문 OPEN 상태와 원본 CSV 상태 차이 확인.
+4. 결제 데이터 수집 필요 범위를 결정하고 기존 Square 결제 생성·연동 여부 확인.
+5. 로컬 수집 검증을 마친 뒤 GCP 저장·수집 환경으로 확장.
+
+**현재는 여전히 Phase 2 — Data Ingestion & Storage다.** JSONB에 원본 객체를 저장한 것이며 온라인·Square 통합 모델이나 매출 집계를 만든 것은 아니다. 고객·상품 중복 통합, variation 펼치기, 주문상품 모델링 및 완료 매출 기준 정의는 이후 변환·모델링에서 진행한다.
+
