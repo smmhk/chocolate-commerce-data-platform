@@ -190,3 +190,56 @@ def delete_customer(square_customer_id: str) -> None:
         "[ROLLBACK SUCCESS] Square customer deleted:",
         square_customer_id,
     )
+
+    
+def list_customers() -> list[dict]:
+    """Square Sandbox의 고객 목록을 모든 페이지에서 조회한다."""
+
+    url = "https://connect.squareupsandbox.com/v2/customers"
+
+    customers = []
+    cursor = None
+    page = 1
+
+    while True:
+        params = {"limit": 100}
+
+        if cursor:
+            params["cursor"] = cursor
+
+        response = requests.get(
+            url,
+            headers=headers,
+            params=params,
+            timeout=30,
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        if data.get("errors"):
+            raise RuntimeError(
+                f"Square 고객 조회 실패: {data['errors']}"
+            )
+
+        page_customers = data.get("customers", [])
+        customers.extend(page_customers)
+
+        print(
+            f"[EXTRACT] page {page}: "
+            f"{len(page_customers)} customers"
+        )
+
+        cursor = data.get("cursor")
+
+        if not cursor:
+            break
+
+        page += 1
+
+    print(
+        f"[EXTRACT] total customers: {len(customers)}"
+    )
+
+    return customers
