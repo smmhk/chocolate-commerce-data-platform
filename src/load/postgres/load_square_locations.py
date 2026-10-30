@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
@@ -7,8 +8,12 @@ from sqlalchemy.engine import Engine
 def load_square_locations(
     locations: list[dict],
     engine: Engine,
+    *,
+    ingested_at: datetime,
+    orchestrator: str,
+    pipeline_run_id: str,
 ) -> None:
-    """Square 매장 JSON을 PostgreSQL에 Upsert한다."""
+    """Square 매장 JSON과 실행 메타데이터를 PostgreSQL에 Upsert한다."""
 
     if not locations:
         print("[LOAD] 저장할 Square 매장이 없습니다.")
@@ -18,17 +23,23 @@ def load_square_locations(
         INSERT INTO raw_square.locations (
             square_location_id,
             payload,
-            ingested_at
+            ingested_at,
+            orchestrator,
+            pipeline_run_id
         )
         VALUES (
             :square_location_id,
             CAST(:payload AS JSONB),
-            CURRENT_TIMESTAMP
+            :ingested_at,
+            :orchestrator,
+            :pipeline_run_id
         )
         ON CONFLICT (square_location_id)
         DO UPDATE SET
             payload = EXCLUDED.payload,
-            ingested_at = EXCLUDED.ingested_at
+            ingested_at = EXCLUDED.ingested_at,
+            orchestrator = EXCLUDED.orchestrator,
+            pipeline_run_id = EXCLUDED.pipeline_run_id
     """)
 
     rows = [
@@ -38,6 +49,9 @@ def load_square_locations(
                 location,
                 ensure_ascii=False,
             ),
+            "ingested_at": ingested_at,
+            "orchestrator": orchestrator,
+            "pipeline_run_id": pipeline_run_id,
         }
         for location in locations
     ]

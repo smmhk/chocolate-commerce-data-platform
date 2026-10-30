@@ -1,9 +1,9 @@
 # 🍫 Phase 3 — Kestra를 이용한 파이프라인 실행 관리
 
 > 프로젝트: Charlie’s Chocolate Factory — Omnichannel Retail Data Platform  
-> 현재 상태: 온라인 상품 파이프라인을 Kestra에서 수동 실행하고 PostgreSQL 적재 및 메타데이터 확인 완료  
+> 현재 상태: 온라인 5개·Square 4개 테이블의 개별 Kestra Flow 수동 실행 성공  
 > 최종 업데이트: 2026-10-30  
-> 다음 단계: Kestra inputs로 적재 대상 선택 → 온라인 전체 테이블 검증 → 필요 시 스케줄 추가
+> 다음 단계: DB 메타데이터·재실행 검증 → 개별 Flow를 호출하는 상위 Flow 구성 → 스케줄 검토
 
 ---
 
@@ -22,7 +22,7 @@ flowchart TD
 
 Phase 3의 첫 목표는 **기존 Python 파이프라인 하나를 Kestra에서 수동으로 실행하고 결과를 확인하는 것**입니다. 그 후 필요에 따라 다른 파이프라인과 자동 실행으로 확장할 계획입니다.
 
-> 업데이트: 기존 Python 파이프라인의 Kestra 연결과 상품 수동 적재는 완료했습니다. 스케줄에 의한 자동 실행은 아직 설정하지 않았습니다.
+> 업데이트: 온라인 5개와 Square 4개 테이블의 개별 Flow 실행에 성공했습니다. 상위 Flow 연결과 스케줄에 의한 자동 실행은 아직 진행하지 않았습니다.
 
 ---
 
@@ -200,7 +200,7 @@ Kestra가 초콜릿 프로젝트의 Compose 설정을 통해 실행되더라도,
 | `products_pipeline.py` | 상품 CSV를 Square 등록용 JSON으로 변환 | 아니요 |
 | `inspect_square_catalog.py` | Square Catalog API 조회와 출력 | 아니요 |
 | `online_to_postgres.py` | 온라인 CSV 읽기 → 선별 → PostgreSQL 저장 | **이번 실행 대상** |
-| Square API → `raw_square` | 매장 POS 분석 데이터 수집 | Kestra 연결은 이후 확장 |
+| Square API → `raw_square` | 매장 POS 분석 데이터 수집 | 고객·매장·주문·카탈로그 개별 Flow 실행 성공 |
 
 이번에는 **온라인 상품 CSV → `raw_online.products`** 경로부터 적용했습니다. 상품 전용 파일을 별도로 만들 필요는 없었으며, 기존 파이프라인에 적재 대상을 선택하는 옵션을 추가했습니다.
 
@@ -244,12 +244,14 @@ pandas==3.0.5
 SQLAlchemy==2.1.4
 psycopg2-binary==2.9.13
 python-dotenv==1.2.3
+requests
 ```
 
 - `pandas`: CSV와 DataFrame 처리
 - `SQLAlchemy`: DB 연결과 SQL 실행
 - `psycopg2-binary`: PostgreSQL 드라이버
 - `python-dotenv`: `.env` 설정 읽기
+- `requests`: Square API HTTP 호출. Square Flow 실행 중 누락 오류를 확인한 뒤 추가했습니다. 현재 직접 버전을 고정하지 않았습니다.
 
 Kestra 작업에는 `python:3.14.0-slim` 이미지를 사용했고, 실제 Linux 컨테이너에서 위 패키지 설치와 파이프라인 실행 성공을 확인했습니다. 의존 패키지인 NumPy 등도 pip가 함께 설치했습니다. 전이 의존성 전체를 잠근 lock 파일은 아직 별도로 구성하지 않았습니다.
 
@@ -573,14 +575,18 @@ sql/migrations/001_add_ingestion_metadata.sql
 - [ ] 실제 workflow YAML을 프로젝트 파일로도 저장하고 Git에서 관리
 - [ ] 변경 SQL 파일 저장 및 코드·설정 변경의 Git 커밋 여부 확인
 - [ ] Kestra `inputs`로 적재할 테이블을 선택하도록 확장
-- [ ] Kestra에서 온라인 전체 5개 테이블 적재 검증
+- [x] 온라인 5개 테이블을 각각 개별 Kestra Flow로 실행 성공
+- [x] Square 고객·매장·주문·카탈로그 개별 Kestra Flow 실행 성공
+- [x] Square 로더와 파이프라인에 실행 메타데이터 전달·저장 적용
+- [ ] 9개 테이블의 DB 메타데이터 및 재실행 전후 결과 최종 검증
+- [ ] 기존 개별 Flow를 호출하는 상위 Flow 구성 및 전체 실행 검증
 - [ ] 전체 갱신 작업의 동시 실행 제한과 데이터 검증 필요성 검토
 - [ ] 필요 시 스케줄 트리거 설정
-- [ ] Square API 수집 파이프라인의 Kestra 연결
+- [x] Square API 수집 파이프라인 4개의 Kestra 연결
 - [ ] 필요에 따라 실행 이력 테이블·Secret 전달·패키지 포함 이미지로 개선
 - [ ] 이후 GCS 및 BigQuery 기반 클라우드 ELT 확장
 
-> **현재 완료 범위는 온라인 상품 파이프라인의 Kestra 수동 실행과 DB 적재 확인입니다.** 온라인 전체 테이블, Square 파이프라인, 스케줄 실행, GCP 적재까지 완료한 것으로 보지 않습니다.
+> **현재 완료 범위는 온라인 5개·Square 4개의 개별 Flow 수동 실행 성공입니다.** 사용자가 전체 성공을 확인했습니다. 9개 Flow를 묶은 상위 Flow, 예약 실행, GCP 적재는 아직 완료하지 않았습니다. 모든 테이블의 DB 검증 SQL 결과 및 재실행 비교 결과는 별도로 제공되지 않았습니다.
 
 ---
 
@@ -602,3 +608,188 @@ sql/migrations/001_add_ingestion_metadata.sql
 | `pipeline_run_id` | 적재 결과와 실행 기록을 연결하는 식별자 |
 
 이 문서는 첨부한 초기 Phase 3 기록을 유지하면서, 2026-10-29~30 대화에서 확인한 설정·코드 변경·로그와 사용자의 완료 확인을 반영했습니다. 비밀번호와 API 토큰은 기록하지 않았습니다.
+
+
+---
+
+## 17. 온라인 개별 Flow 확장 완료 — 2026-10-30
+
+상품 Flow의 실행 환경을 재사용하고 Flow ID, Task ID, `--tables` 값만 변경해 나머지 온라인 테이블까지 확장했습니다.
+
+| Flow ID | 적재 테이블 | 실행 결과 |
+|---|---|---|
+| `online_products_to_postgres` | `raw_online.products` | 성공 |
+| `online_customers_to_postgres` | `raw_online.customers` | 성공 |
+| `online_customer_addresses_to_postgres` | `raw_online.customer_addresses` | 성공 |
+| `online_orders_to_postgres` | `raw_online.orders` | 성공 |
+| `online_order_items_to_postgres` | `raw_online.order_items` | 성공 |
+
+각 Flow는 `online_to_postgres --tables <테이블명>`을 실행합니다. 별도 실행이므로 테이블마다 execution ID가 달라도 정상입니다. 온라인 전체를 한 번에 실행하는 상위 Flow는 아직 만들지 않았습니다.
+
+### 재실행 시 저장 방식 확인
+
+제공된 `load_table.py`를 확인했습니다. 허용된 테이블에 대해 `DELETE` 후 `df.to_sql(..., if_exists="append")`로 다시 채웁니다. 두 작업은 같은 `engine.begin()` 연결 안에서 수행합니다.
+
+- 같은 CSV로 재실행해도 행이 누적되지 않는 전체 교체 방식입니다.
+- 삽입 실패 시 해당 테이블의 삭제도 롤백됩니다.
+- 테이블 간 전체 원자성을 보장하는 구조는 아닙니다.
+- 빈 DataFrame을 적재하면 기존 행이 삭제되어 테이블이 비워질 수 있습니다.
+- 위 내용은 코드 검토 결과이며, 재실행 전후 행 수 비교를 실제 수행했다고 기록하지 않습니다.
+
+## 18. Square API 파이프라인의 Kestra 실행 완료 — 2026-10-30
+
+온라인 개별 Flow 실행을 마친 뒤 Square 고객 → 매장 → 주문 → 카탈로그 순서로 확장했습니다. 사용자는 최종적으로 모두 성공했다고 확인했습니다.
+
+| Flow ID | 실행 Python 모듈 | 대상 테이블 | 상태 |
+|---|---|---|---|
+| `square_customers_to_postgres` | `src.pipelines.square_customers_to_postgres` | `raw_square.customers` | 성공 |
+| `square_locations_to_postgres` | `src.pipelines.square_locations_to_postgres` | `raw_square.locations` | 성공 |
+| `square_orders_to_postgres` | `src.pipelines.square_orders_to_postgres` | `raw_square.orders` | 성공 |
+| `square_catalog_to_postgres` | `src.pipelines.square_catalog_to_postgres` | `raw_square.catalog_objects` | 성공 |
+
+Square의 주문 상품 정보는 현재 주문 JSON 원본 안에 저장합니다. 이번 작업에서 별도 Square 주문 상품 테이블을 만든 것은 아닙니다.
+
+### 18.1 DB 메타데이터 컬럼 준비
+
+기존 네 테이블에는 모두 `ingested_at`이 있었습니다. 고객에는 `orchestrator`, `pipeline_run_id`도 이미 `TEXT` 타입으로 존재했습니다. 다른 테이블에는 두 컬럼을 추가했습니다.
+
+기존 온라인 메타데이터 ALTER SQL 뒤에 Square 구문을 추가하는 방향으로 정리했으며, 통합 파일명으로 `sql/migrations/add_pipeline_metadata_columns.sql`을 제안했습니다. 실제 저장 파일명 및 Git 커밋 완료는 확인되지 않았습니다.
+
+```sql
+ALTER TABLE raw_square.customers
+    ADD COLUMN IF NOT EXISTS ingested_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS orchestrator VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS pipeline_run_id VARCHAR(100);
+
+ALTER TABLE raw_square.locations
+    ADD COLUMN IF NOT EXISTS ingested_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS orchestrator VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS pipeline_run_id VARCHAR(100);
+
+ALTER TABLE raw_square.orders
+    ADD COLUMN IF NOT EXISTS ingested_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS orchestrator VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS pipeline_run_id VARCHAR(100);
+
+ALTER TABLE raw_square.catalog_objects
+    ADD COLUMN IF NOT EXISTS ingested_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS orchestrator VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS pipeline_run_id VARCHAR(100);
+```
+
+`IF NOT EXISTS`는 기존 컬럼을 건너뛰며 타입을 변경하지 않습니다. 따라서 고객의 기존 `TEXT` 컬럼은 그대로 유지됩니다. SQL을 파일에 저장하는 것만으로 DB에 적용되지 않으며 DBeaver에서 실제 실행하고, 수동 커밋 모드라면 Commit해야 합니다. 최초 생성 SQL의 반영 여부는 별도 확인 항목입니다.
+
+### 18.2 Python 파이프라인과 로더 변경
+
+네 파이프라인 모두 API 조회 후, DB 저장 전에 다음 값을 한 번 생성합니다.
+
+```python
+ingested_at = datetime.now(timezone.utc)
+orchestrator = os.getenv("PIPELINE_ORCHESTRATOR", "local")
+pipeline_run_id = os.getenv("PIPELINE_RUN_ID") or str(uuid4())
+```
+
+각 로더에 다음 키워드 인자를 전달하도록 변경했습니다.
+
+```python
+ingested_at=ingested_at,
+orchestrator=orchestrator,
+pipeline_run_id=pipeline_run_id,
+```
+
+로더는 `datetime` 타입의 `ingested_at`과 문자열 두 개를 필수 키워드 인자로 받습니다. 기존 `CURRENT_TIMESTAMP` 대신 전달받은 시각을 저장하고, INSERT 및 ON CONFLICT UPDATE 양쪽에 세 컬럼을 반영했습니다.
+
+| 데이터 | Upsert 기준 키 | 유지한 원본 저장 방식 |
+|---|---|---|
+| 고객 | `square_customer_id` | `payload` JSONB |
+| 매장 | `square_location_id` | `payload` JSONB |
+| 주문 | `square_order_id` | `payload` JSONB |
+| 카탈로그 | `square_object_id` | `object_type` 및 `payload` JSONB |
+
+메타데이터는 원본 JSON 내부에 삽입하지 않고 별도 컬럼으로 저장합니다. 같은 ID를 다시 적재하면 원본과 마지막 실행 메타데이터를 갱신합니다. 원천에서 사라진 ID를 자동 삭제하는 동기화 방식은 아니며, 실행 이력 전체를 보존하지도 않습니다. 각 로더는 `engine.begin()`으로 전달된 행들을 하나의 트랜잭션에 저장하고, 파이프라인은 `finally`에서 `engine.dispose()`를 호출합니다.
+
+주문 파이프라인은 `src.square.location.list_locations()`로 매장을 조회한 뒤 각 매장의 `search_orders(location_ids=[...])` 결과를 모아 한 번에 저장하는 기존 구조를 유지했습니다. 매장이 없으면 오류를 발생시킵니다. 매장 모듈명은 실제 파일명에 맞춰 단수형 `location`을 사용합니다.
+
+### 18.3 Kestra Flow 구성
+
+고객 Flow를 기준으로 아래 환경을 재사용했습니다.
+
+```yaml
+id: square_customers_to_postgres
+namespace: chocolate
+
+tasks:
+  - id: load_square_customers
+    type: io.kestra.plugin.scripts.python.Commands
+    containerImage: python:3.14.0-slim
+
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      networkMode: chocolate-commerce-data-platform_default
+      volumes:
+        - "/run/desktop/mnt/host/c/Users/smmhk/PycharmProjects/chocolate-commerce-data-platform:/project:ro"
+
+    env:
+      CHOCOLATE_DB_HOST: postgres
+      PYTHONDONTWRITEBYTECODE: "1"
+      PIPELINE_ORCHESTRATOR: kestra
+      PIPELINE_RUN_ID: "{{ execution.id }}"
+
+    beforeCommands:
+      - pip install -r /project/requirements.txt
+
+    commands:
+      - cd /project && python -m src.pipelines.square_customers_to_postgres
+```
+
+나머지 Flow에서는 Flow ID, Task ID와 실행 모듈을 해당 데이터용으로 변경했습니다. 매번 별도 작업 컨테이너를 준비하고 `requirements.txt`를 설치합니다. 기존 프로젝트 설정을 통해 Square API 인증과 DB 연결을 사용했으며 인증 값은 문서에 기록하지 않습니다.
+
+### 18.4 오류와 해결 기록
+
+| 발생 위치 | 실제 오류 | 해결 |
+|---|---|---|
+| 고객 모듈 import | `ModuleNotFoundError: No module named 'requests'` | `requirements.txt`에 `requests` 추가 후 재실행 성공 |
+| 매장 DB 저장 | `column "orchestrator" of relation "locations" does not exist` | 대상 DB에 매장 ALTER SQL 적용 후 재실행 성공 |
+| 주문 DB 저장 | `column "orchestrator" of relation "orders" does not exist` | 주문 ALTER SQL 실행·커밋 안내 후 사용자가 전체 성공 확인 |
+
+고객 오류는 API 호출 전 import 단계에서 발생했습니다. 매장·주문 오류는 조회 이후 DB 저장 단계에서 발생했으며 실패한 저장 트랜잭션은 롤백됩니다. `Command failed with exit code 1`은 종료 결과이므로 원인은 그보다 앞선 Python traceback에서 확인했습니다.
+
+실패 당시 로그에서 확인한 조회 결과:
+
+- 매장: 5개 조회 성공
+- 주문: Burnaby 8개, Downtown Vancouver 5개, Richmond 6개, 나머지 두 매장 0개로 총 19개 조회 성공
+
+이 수치는 실패 당시 추출 로그 기준입니다. 재실행 성공 로그의 행 수나 카탈로그 객체 수를 새로 확인한 값으로 간주하지 않습니다.
+
+### 18.5 DB 검증 SQL
+
+각 테이블에서 다음 패턴으로 확인합니다. `customers`를 `locations`, `orders`, `catalog_objects`로 바꿔 재사용할 수 있습니다.
+
+```sql
+SELECT
+    orchestrator,
+    pipeline_run_id,
+    ingested_at,
+    COUNT(*) AS row_count
+FROM raw_square.customers
+GROUP BY orchestrator, pipeline_run_id, ingested_at
+ORDER BY ingested_at DESC;
+```
+
+`orchestrator = 'kestra'`이고 실행 ID가 해당 Flow의 execution ID와 일치하는지 확인합니다. 별도 Flow 실행이므로 네 테이블의 ID가 서로 다른 것은 정상입니다. 전체 성공은 사용자가 확인했으며, 각 테이블의 검증 SQL 결과가 모두 제공된 것은 아닙니다.
+
+## 19. 상위 Flow 구성 직전의 체크포인트
+
+- [x] 온라인 5개 개별 Flow 실행 성공
+- [x] Square 4개 개별 Flow 실행 성공
+- [x] Square API용 `requests` 의존성 추가
+- [x] 온라인·Square 실행 메타데이터 기록 코드 적용
+- [x] 온라인 전체 교체 및 Square Upsert 저장 방식 코드 확인
+- [ ] 9개 테이블의 DB 메타데이터 최종 대조
+- [ ] 재실행 전후 행 수와 중복 여부 실측 검증
+- [ ] 기존 개별 Flow들을 호출하는 상위 Flow 작성
+- [ ] 전체 실행 순서·실패 전파·동시 실행 정책 검토
+- [ ] 수동 전체 실행 검증 후 스케줄 및 재시도 정책 검토
+- [ ] 변경한 SQL·Python·YAML 파일 저장 및 Git 커밋 확인
+
+**현재는 개별 Flow 실행 완료 지점이며, 상위 Flow는 아직 작성하지 않았습니다.** 이번 문서 업데이트는 이 지점까지의 작업을 기록합니다.
