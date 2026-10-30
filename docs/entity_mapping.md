@@ -1,14 +1,19 @@
 # 🧩 Entity Mapping
 
-> 업데이트: 2026-09-22 · Lovable → Square Sandbox 연동 학습 기록
+> 업데이트: 2026-10-30 · Lovable → Square 매핑과 분석용 PostgreSQL 적재 메타데이터  
+> 기존 상세 기록: 2026-09-22 기준 · 이후 진행 상태는 아래 최신 현황과 13절 참고
 
 Lovable 원본 데이터와 Square 데이터를 어떻게 연결하는지 기록한다.
 
 필요한 데이터를 선택하고 Square의 구조로 변환하는 과정과, 구현하면서 배운 점을 함께 정리한다.
 
+추가로 분석용 `raw_online` 테이블에 생성하는 적재 메타데이터를 구분해 기록한다. **`ingested_at`, `orchestrator`, `pipeline_run_id`는 원본 CSV 필드나 Square API 매핑 필드가 아니라, Python 적재 과정에서 생성하는 관리 정보다.**
+
 ---
 
 ## 📋 1. 엔티티별 진행 상태
+
+아래 매핑 상세는 초기 구현 기록을 기반으로 한다. 주문 관련 후속 진행은 표 아래 최신 현황에 별도로 정리했다.
 
 | Lovable Entity | Square Resource | 현재 상태 | 연동 범위 |
 |---|---|---|---|
@@ -16,8 +21,8 @@ Lovable 원본 데이터와 Square 데이터를 어떻게 연결하는지 기록
 | `customers` | Customers | ✅ 1차 완료 | POS에서 가입한 고객 |
 | `customer_addresses` | Customer의 `address` | 🟡 고객 ID 연결 처리 통합 | 주소 CSV에 Square 고객 ID 기록, 실제 주소 전송은 별도 |
 | `stores` | Locations | ✅ 생성 테스트 완료 | 매장 요청 변환·생성, 원본 DB·CSV 우편번호 반영 완료 |
-| `orders` | Orders | ⚪ 예정 | RETAIL 주문만 전송 |
-| `order_items` | Order line items | ⚪ 예정 | 선택한 RETAIL 주문의 항목 |
+| `orders` | Orders | ✅ 후속 API 조회·PostgreSQL 저장 확인 | RETAIL 매장 데이터, 상세 요청 매핑은 별도 기록 |
+| `order_items` | Order line items | 🟡 후속 주문 연동 범위 | RETAIL 주문 항목, 개별 필드·저장 검증은 별도 확인 |
 | `payments` | Payments | ⚪ 예정 | 매장 주문의 Sandbox 결제 처리 |
 | `loyalty_settings` | 미정 | ⚪ 범위 검토 | Square 연동 필요성 검토 |
 | `loyalty_transactions` | 미정 | ⚪ 범위 검토 | 원본 리워드와 Square 연동 범위 결정 |
@@ -28,6 +33,17 @@ Lovable 원본 데이터와 Square 데이터를 어떻게 연결하는지 기록
 매장은 생성 테스트까지 완료했으며, 전체 매장의 ID 저장 결과와 일괄 처리 여부는 별도로 확인한다.
 
 > Lovable의 리워드 기능과 Square Loyalty 연동은 별개의 작업이다.
+
+### 2026년 10월 후속 현황
+
+- Square Catalog에서 상품 15개를 조회한 기록이 있다.
+- Square 고객 20건의 `raw_square.customers` 적재를 확인했다.
+- Square 주문은 5개 Location을 조회해 총 19건을 확인했고 PostgreSQL 저장을 확인했다. 이 행 수는 당시 데이터 스냅샷이다.
+- 온라인 경로는 CSV → `raw_online` 적재로 진행했으며, **온라인 상품 15행의 Kestra 수동 적재 및 DB 결과 확인을 완료**했다.
+- Square API 수집의 Kestra 연결, 온라인 전체 테이블의 Kestra 실행, 스케줄과 GCP 적재는 아직 완료로 기록하지 않는다.
+
+기존의 세부 생성·복구 로직 설명은 해당 시점의 구현 기록이다. 주문 payload와 결제의 구체적인 후속 구현은 확인된 코드 없이 임의로 보완하지 않는다.
+
 
 ---
 
@@ -48,13 +64,15 @@ Lovable 원본 데이터와 Square 데이터를 어떻게 연결하는지 기록
 | 주문 | `channel = 'RETAIL'` |
 | 주문 항목·결제 | 선택한 RETAIL 주문에 연결된 기록 |
 
-### 향후 분석용 수집
+### 현재 분석용 수집과 향후 확장
 
-| 데이터 | 수집 경로 |
-|---|---|
-| 매장 고객·주문 | Square API → GCP의 저장소·BigQuery |
-| 온라인 고객·주문 | Lovable DB → GCP의 저장소·BigQuery |
-| Square에 없는 원본 주소·보조 정보 | 필요에 따라 Lovable DB에서 직접 수집 |
+| 데이터 | 현재 로컬 수집 | 이후 목표 |
+|---|---|---|
+| 매장 고객·주문 | Square API → PostgreSQL `raw_square` | GCS·BigQuery 확장 |
+| 온라인 데이터 | Lovable에서 export한 CSV → PostgreSQL `raw_online` | DB·API 직접 수집 및 GCS·BigQuery 확장 |
+| 원본 주소·보조 정보 | 온라인 가입 고객과 연결된 주소 CSV 등을 선별 | 통합 분석에 필요한 추가 범위 검토 |
+
+현재 온라인 상품 경로는 Kestra에서 기존 Python 모듈을 실행한다. CSV 적재의 실행 자동화와 웹사이트에서 최신 CSV를 생성하는 일은 별개다. 현재 수동 실행을 확인했으며 스케줄은 아직 없다.
 
 분석을 위해 Square 데이터를 Lovable DB에 다시 복사할 필요는 없다.
 각 소스에서 필요한 데이터를 수집하고 분석 플랫폼에서 연결한다.
@@ -541,7 +559,7 @@ Square API의 전체 필수 항목 목록을 의미하지 않는다.
 매장 생성 성공과 로컬 매핑 저장 완료는 구분해서 확인한다.
 매장 ID 저장 컬럼명과 저장 실패 복구 방식은 별도 확인 항목으로 남긴다.
 
-### 다음 단계: Order / Order Item Mapping
+### 주문 연동 준비 시 정리한 Order 및 Order Item Mapping
 
 | 원본 값 | 연결 대상 |
 |---|---|
@@ -567,6 +585,12 @@ Square API의 전체 필수 항목 목록을 의미하지 않는다.
 | 경로 | 역할 |
 |---|---|
 | `src/extract/load_csv.py` | CSV 읽기 |
+| `src/extract/online/load_online_data.py` | 온라인 원본 CSV 5개 읽기 |
+| `src/transform/online/filter_online_data.py` | 온라인 고객·주문 및 관련 데이터 선별, 상품은 전체 사용 |
+| `src/pipelines/online_to_postgres.py` | 적재 대상 선택, 실행 메타데이터 생성, 온라인 DB 적재 흐름 관리 |
+| `src/load/postgres/connection.py` | 환경 변수 기반 SQLAlchemy DB 연결 |
+| `src/load/postgres/load_table.py` | `raw_online` 테이블별 전체 갱신 |
+| `sql/migrations/001_add_ingestion_metadata.sql` | 온라인 raw 테이블의 적재 메타데이터 컬럼 추가 변경 |
 | `src/transform/products.py` | 상품 요청 데이터 변환 |
 | `src/square/catalog.py` | 상품 검색·생성·삭제 및 결과 저장 |
 | `src/transform/customers.py` | 고객 요청 데이터 변환 |
@@ -655,7 +679,11 @@ DB를 수정해도 기존 로컬 CSV는 자동으로 바뀌지 않으므로 다�
 
 ---
 
-## ▶️ 12. 다음 작업 순서
+## ▶️ 12. 초기 작업 계획과 현재 다음 단계
+
+### 초기 Square 원천 시스템 준비 계획
+
+아래 순서는 2026-09-22 시점의 계획이다. 이후 Square 주문 API 조회와 PostgreSQL 저장까지 진행했으므로 현재 미완료 목록으로 해석하지 않는다.
 
 1. **매장 연결 마무리** — 우편번호의 DB·CSV 반영은 완료했으므로, 원본 매장 ID ↔ Square Location ID 매핑을 확인한다.
 2. **RETAIL 주문 한 건 선택** — 주문, 주문 항목, 매장, 고객, 상품 데이터를 연결한다.
@@ -665,5 +693,96 @@ DB를 수정해도 기존 로컬 CSV는 자동으로 바뀌지 않으므로 다�
 6. **일괄 처리와 재실행 확인** — 한 건의 흐름이 확인되면 여러 매장의 주문으로 확장한다.
 7. **분석용 수집으로 이동** — Square 매장 데이터와 Lovable 온라인 데이터를 GCP·BigQuery로 수집한다.
 
-현재까지는 **분석에 사용할 가상의 매장 데이터 소스를 준비하는 단계**다.
-주문·결제 연동과 GCP 적재는 아직 완료 항목에 포함하지 않는다.
+### 현재 다음 단계
+
+1. Kestra inputs로 온라인 적재 대상 선택 기능을 추가한다.
+2. 온라인 전체 5개 테이블의 Kestra 적재와 실행 메타데이터를 확인한다.
+3. Square 수집 파이프라인을 Kestra에 연결한다.
+4. 필요에 따라 스케줄·동시 실행 제한·검증을 설정한다.
+5. 이후 GCS·BigQuery로 확장한다.
+
+결제 처리와 GCP 적재는 완료로 기록하지 않는다. 현재 Phase 3 상세 설정과 실행 로그는 `phase-3-kestra-orchestration-ko.md`에서 관리한다.
+
+---
+
+## 🏷️ 13. 분석용 적재 메타데이터 매핑
+
+### 원천 필드와 파이프라인 생성 필드 구분
+
+| 구분 | 컬럼 예시 | 생성 주체 | 저장 또는 사용 위치 |
+|---|---|---|---|
+| 원천 상품 정보 | `product_name`, `sku`, `price` | Lovable 원천 시스템 | CSV·Square 요청·분석용 raw 테이블 |
+| 원천 변경 시각 | `created_at`, `updated_at` | Lovable 원천 시스템 | 원본 값을 분석용 DB에 유지 |
+| Square 연결 정보 | `square_catalog_object_id`, `square_customer_id` | Square 응답과 연결 코드 | 원본 CSV의 ID 매핑과 분석용 테이블 |
+| Square 동기화 정보 | `square_synced_at`, `square_sync_status` | Square 전송 처리 코드 | 원본에 기록한 동기화 결과 |
+| 분석용 적재 정보 | `ingested_at`, `orchestrator`, `pipeline_run_id` | PostgreSQL 적재 파이프라인 | `raw_online` 테이블에 추가 |
+
+**이번 ALTER는 로컬 PostgreSQL의 `raw_online` 테이블 변경이다.** Lovable DB나 CSV의 컬럼을 추가한 작업이 아니며, 이 세 컬럼을 Square API payload에 보내지 않는다. `raw_square`에 같은 컬럼을 추가했다는 의미도 아니다.
+
+### 추가한 컬럼과 생성 규칙
+
+| 대상 컬럼 | 타입 | 입력 또는 생성 규칙 | 의미 |
+|---|---|---|---|
+| `ingested_at` | `TIMESTAMPTZ` | Python `datetime.now(timezone.utc)` | 한 번의 실행에서 적재를 준비하며 생성한 UTC 시각 |
+| `orchestrator` | `VARCHAR(50)` | 환경 변수 `PIPELINE_ORCHESTRATOR`, 기본값 `local` | 이 프로젝트에서 정한 실행 경로 식별값 |
+| `pipeline_run_id` | `VARCHAR(100)` | 환경 변수 `PIPELINE_RUN_ID`, 없으면 UUID 생성 | 동일 실행으로 적재된 행들을 연결하는 ID |
+
+Kestra는 `PIPELINE_ORCHESTRATOR=kestra`와 `PIPELINE_RUN_ID={{ execution.id }}`를 전달한다. 같은 파이프라인 실행에서 적재하는 행들은 공통 메타데이터를 사용한다. 시각은 DB 커밋 완료 시각 자체가 아니다.
+
+적용 대상:
+
+- `raw_online.products`
+- `raw_online.customers`
+- `raw_online.customer_addresses`
+- `raw_online.orders`
+- `raw_online.order_items`
+
+컬럼 추가는 5개 테이블에 적용했다. **Kestra를 통한 적재 및 DB 결과를 확인한 대상은 현재 products**이며, 다른 4개 테이블의 Kestra 실행 완료를 의미하지 않는다.
+
+### ALTER와 변경 SQL의 위치
+
+변경 SQL은 다음 파일에서 관리하는 방향으로 정리했다.
+
+```text
+sql/migrations/001_add_ingestion_metadata.sql
+```
+
+컬럼 추가 형태는 다음과 같고, 실제 변경 파일에는 5개 대상 테이블의 ALTER를 포함한다.
+
+```sql
+ALTER TABLE raw_online.products
+    ADD COLUMN IF NOT EXISTS ingested_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS orchestrator VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS pipeline_run_id VARCHAR(100);
+```
+
+- 현재 DB에는 DBeaver에서 ALTER를 실행했다.
+- 이미 존재하는 컬럼의 `already exists, skipping` 안내는 `IF NOT EXISTS`에 따른 정상 처리다.
+- 최초 CREATE와 후속 ALTER를 순서대로 관리하며, 이미 적용한 버전별 이력 파일을 다시 수정하는 방식과 최신 구조 요약 파일을 구분한다.
+- 빈 DB에는 최초 CREATE → 후속 ALTER 순서로 적용하고, 초기 구조가 있는 DB에는 미적용 변경만 적용한다.
+- SQL 파일을 폴더에 두는 것만으로 STG에서 자동 실행되지 않는다. 현재 마이그레이션 자동 실행 도구는 연결하지 않았다.
+
+컬럼의 타입·변경 SQL 전체는 스키마와 migration 파일에서 관리하고, 이 문서에서는 컬럼의 의미와 원천 필드와의 관계를 정리한다.
+
+### 실행을 추적하는 확인 SQL
+
+```sql
+SELECT
+    orchestrator,
+    pipeline_run_id,
+    ingested_at,
+    COUNT(*) AS row_count
+FROM raw_online.products
+GROUP BY orchestrator, pipeline_run_id, ingested_at;
+```
+
+Kestra 실행 ID와 DB의 `pipeline_run_id`를 비교해 실행을 연결한다. 행 수가 15인 것만으로는 이전 로컬 실행과 Kestra 실행을 구분하기 어렵다. 원본 `updated_at`이 예전 날짜인 것도 재적재 실패의 증거는 아니다.
+
+### 전체 갱신에서의 해석
+
+현재 적재 함수는 기존 행을 삭제한 뒤 새 데이터를 삽입하는 전체 갱신 방식이다. 같은 CSV를 다시 적재하면 원천 상품 정보는 같아도 실행 메타데이터는 바뀐다.
+
+- `ingested_at`은 원본 상품 수정일이나 Square 동기화 시각과 다르다.
+- 오래된 CSV를 오늘 적재해도 적재 시각은 오늘이므로 원천 데이터 최신성을 별도로 확인해야 한다.
+- 행에는 마지막 적재 정보가 남고, 모든 과거 실행 이력을 보존하지는 않는다.
+- 이번 메타데이터는 실행 추적용이며 상품·고객·주문 사이의 업무 키나 조인 키를 대체하지 않는다.

@@ -2,9 +2,9 @@
 
 이 문서는 **Charlie’s Chocolate Factory — Omnichannel Retail Data Platform Project**의 주요 작업 진행 상황과 다음 작업을 기록합니다.
 
-> 최근 업데이트: 2026-10-26  
-> 현재 위치: 온라인 CSV와 Square API 데이터의 로컬 PostgreSQL 적재를 진행하고, Kestra 환경을 구성해 기본 개념 학습 중  
-> 다음 작업: 강의 예제 workflow 실행 후 기존 Python 파이프라인 하나를 Kestra에 연결하기
+> 최근 업데이트: 2026-10-30  
+> 현재 위치: 기존 온라인 상품 파이프라인을 Kestra에서 수동 실행하고, PostgreSQL 적재와 실행 메타데이터 확인 완료  
+> 다음 작업: Kestra inputs로 적재 대상 선택 → 온라인 전체 테이블 검증 → 필요 시 스케줄 추가
 
 ---
 
@@ -14,7 +14,7 @@
 |---|---|---|
 | Phase 1 | Source System Simulation | ✅ 완료 — 기존 진행 기록 기준 |
 | Phase 2 | Data Ingestion & Local Storage | ✅ 로컬 적재 완료 — 아래 확인 사항 별도 관리 |
-| Phase 3 | Workflow Orchestration with Kestra | 🟡 진행 중 — 환경 실행 및 기본 개념 학습 |
+| Phase 3 | Workflow Orchestration with Kestra | 🟡 진행 중 — 온라인 상품 수동 적재와 DB 결과 확인 완료 |
 | Phase 4 | Cloud Data Platform | ⬜ 예정 — GCS 및 BigQuery |
 | Phase 5 | Data Transformation & Modeling | ⬜ 예정 — 정제·표준화·통합 모델링 |
 | Phase 6 | Analytics & BI | ⬜ 예정 — 분석 및 대시보드 |
@@ -32,21 +32,25 @@
 | 수정 후 전체 검증 SQL 결과 최종 대조 | 🔎 확인할 항목 |
 | Square API 데이터 추출 및 `raw_square` 적재 | ✅ 주문 데이터까지 PostgreSQL 적재 확인 |
 | Square 상품·매장 데이터별 세부 적재 및 검증 기록 | 🔎 구현 범위와 결과 확인 후 기록 |
-| Python 파이프라인 Dockerize | ⬜ 향후 작업 — 적용 여부와 시점 결정 |
+| Python 컨테이너 실행 | ✅ Phase 3에서 Docker runner로 실행 확인 — 프로젝트 전용 이미지 제작은 이후 검토 |
 | GCP / GCS / BigQuery 환경 및 수집 경로 | ⬜ Phase 4 예정 |
 
 ### Phase 3 세부 상태
 
 | 작업 | 상태 |
 |---|---|
-| Docker Compose에 Kestra 추가 | ✅ 완료 |
-| Kestra 실행 및 UI 접속 | ✅ 확인 |
-| Kestra 기본 개념 학습 | 🟡 진행 중 |
-| 강의 예제 workflow 생성 및 실행 | ⬜ 예정 |
-| Kestra 실행 환경에서 Python 프로젝트 접근 방법 구성 | ⬜ 예정 |
-| 기존 Python 파이프라인 하나를 workflow에서 수동 실행 | ⬜ 예정 |
-| 실행 로그와 PostgreSQL 적재 결과 확인 | ⬜ 예정 |
-| 다른 파이프라인으로 확장 및 필요 시 일정 설정 | ⬜ 예정 |
+| Docker Compose에 Kestra와 운영용 PostgreSQL 추가 | ✅ 완료 |
+| Kestra UI와 hello 예제 실행 | ✅ `Mandy` 입력 및 SUCCESS 확인 |
+| 기존 온라인 파이프라인의 `--tables` 옵션 추가 | ✅ 상품 선택 실행 성공 |
+| 패키지 목록과 환경 변수 기반 DB 연결 | ✅ 준비 및 컨테이너 실행 검증 |
+| Docker runner 네트워크와 프로젝트 폴더 연결 | ✅ 포트 연결·파일 접근 확인 |
+| Kestra에서 온라인 상품 파이프라인 수동 실행 | ✅ `raw_online.products` 15행 적재 성공 |
+| 적재 메타데이터 컬럼과 실행 ID 전달 | ✅ 추가 및 사용자 DB 결과 확인 |
+| 온라인 전체 5개 테이블의 Kestra 실행 | ⬜ 다음 단계 |
+| Square 수집 파이프라인의 Kestra 연결 | ⬜ 예정 |
+| 스케줄과 동시 실행 제한 | ⬜ 미설정 — 필요에 따라 검토 |
+
+**완료 범위는 온라인 상품의 Kestra 수동 실행입니다.** 로컬에서 전체 온라인 적재가 성공한 것과 Kestra에서 전체 테이블을 검증한 것은 구분합니다. 현재 온라인 입력은 CSV이며, 웹사이트의 최신 데이터를 자동으로 export하는 기능까지 구현한 것은 아닙니다.
 
 ---
 
@@ -278,7 +282,7 @@ Square 상품과 매장 데이터의 **최종 테이블별 적재·검증 여부
 - Workflow, task, execution, input, variable, output, trigger, concurrency의 역할 이해
 - 강의의 예제 workflow는 Kestra 실행만으로 자동 생성되지 않고, 예제 YAML을 가져와 별도로 생성한다는 점 확인
 
-현재는 **Kestra 환경을 실행하고 개념을 학습한 단계**입니다. 초콜릿 프로젝트의 Python 파이프라인을 Kestra에서 실행하거나 자동화한 것은 아직 완료된 작업으로 표시하지 않습니다.
+**2026-10-26 당시에는** Kestra 환경과 개념 학습 단계였습니다. 이후 10월 29~30일에 기존 Python 파이프라인의 연결과 상품 수동 적재를 완료했으며, 상세 내용은 아래에 추가했습니다.
 
 ## 🧠 Phase 3의 목표
 
@@ -298,23 +302,234 @@ flowchart TD
 - Kestra는 실행 상태와 로그를 확인하는 데 도움을 줍니다. 세부 데이터 건수 등은 코드나 task가 해당 정보를 기록해야 확인할 수 있습니다.
 - 자동 실행은 workflow 저장만으로 시작되지 않습니다. Schedule trigger를 설정·활성화하고 Kestra가 실행 중이어야 합니다.
 
+---
+
+# 2026-10-29~30 — 기존 Python 파이프라인의 Kestra 연결
+
+## ✅ 1. 실행할 경로와 모듈 확정
+
+처음 적용 대상은 **온라인 상품 CSV → PostgreSQL `raw_online.products`**로 정했습니다.
+
+| 구분 | 목적 |
+|---|---|
+| CSV → Square 등록용 JSON 및 API 전송 | Phase 1 원천 시스템 시뮬레이션 |
+| Square Catalog 조회 | Square 상품 응답 구조 확인 |
+| 온라인 CSV → `raw_online` | 이번 Kestra 적재 실습 경로 |
+
+상품 전용 Python 파일을 추가하는 대신 기존 `src/pipelines/online_to_postgres.py`에 `argparse` 기반 `--tables` 옵션을 추가했습니다.
+
+```bash
+# 전체 온라인 테이블
+python -m src.pipelines.online_to_postgres
+
+# 상품만 선택
+python -m src.pipelines.online_to_postgres --tables products
+```
+
+현재 `load_online_data()`와 `filter_online_data()`는 기존대로 CSV 5개를 읽고 선별합니다. **선택 옵션은 DB 적재 범위만 제한**하므로 상품만 선택해도 다른 데이터의 EXTRACT·TRANSFORM 로그가 나오는 것이 정상입니다. 적재 순서는 기존 `LOAD_ORDER`를 유지합니다.
+
+로컬에서 상품 15행 적재가 성공한 뒤 동일 명령을 Kestra에 연결했습니다.
+
+## ✅ 2. Python 실행 환경 준비
+
+프로젝트 루트에 `requirements.txt`를 추가하고 로컬 성공 환경에 맞췄습니다.
+
+```text
+pandas==3.0.5
+SQLAlchemy==2.1.4
+psycopg2-binary==2.9.13
+python-dotenv==1.2.3
+```
+
+Kestra 작업 이미지로 `python:3.14.0-slim`을 사용했습니다. Windows `.venv`와 작업 컨테이너는 별도 환경이므로 컨테이너에서 패키지를 설치합니다. 실제 Linux 컨테이너 설치와 실행이 성공했습니다.
+
+`src/load/postgres/connection.py`는 고정 접속 정보를 환경 변수로 읽도록 변경했습니다. `.env` 로딩과 SQLAlchemy `URL.create()`를 사용합니다.
+
+| 실행 위치 | DB 호스트 |
+|---|---|
+| Windows에서 직접 실행 | `localhost` |
+| 프로젝트 네트워크의 Python 작업 컨테이너 | `postgres` |
+
+현재 `.env`는 읽기 전용으로 연결된 프로젝트 폴더에서 읽습니다. Kestra가 전달한 환경 변수는 기본 `load_dotenv()`에 의해 덮어써지지 않습니다. 비밀번호는 문서나 Git에 기록하지 않습니다.
+
+## ✅ 3. Docker runner 네트워크와 폴더 연결
+
+확인한 서비스 구성:
+
+| 서비스 | 이미지 | 역할 |
+|---|---|---|
+| `postgres` | `postgres:18` | 초콜릿 DB 운영 |
+| `kestra_postgres` | `postgres:18` | Kestra 운영용 DB |
+| `kestra` | `kestra/kestra:v1.1` | UI와 실행 관리 |
+
+Windows에서는 Docker Desktop 엔진을 먼저 실행합니다. `docker compose up -d`는 엔진을 시작하는 명령이 아니라 프로젝트 컨테이너를 생성하거나 시작하는 명령입니다.
+
+프로젝트 네트워크는 `docker network ls`로 확인했습니다.
+
+```text
+chocolate-commerce-data-platform_default
+```
+
+Docker 작업 컨테이너의 폴더 연결을 허용하도록 Compose의 `KESTRA_CONFIGURATION` 문자열 내부, 기존 `kestra:` 아래에 설정을 추가했습니다.
+
+```yaml
+kestra:
+  plugins:
+    configurations:
+      - type: io.kestra.plugin.scripts.runner.docker.Docker
+        values:
+          volume-enabled: true
+```
+
+위 내용은 내부 설정 발췌입니다. Compose의 `services.kestra` 바로 아래에 넣지 않으며, 중복 `server:` 설정도 제거했습니다.
+
+```bash
+docker compose config --quiet
+docker compose up -d kestra
+```
+
+작업 runner는 프로젝트 네트워크를 사용하고, 프로젝트 폴더를 `/project`에 읽기 전용으로 연결합니다. 처음의 Windows `C:/...` 형식은 docker-java Bind 파싱 오류가 발생해 다음 Linux 측 경로로 수정했습니다.
+
+```yaml
+taskRunner:
+  type: io.kestra.plugin.scripts.runner.docker.Docker
+  networkMode: chocolate-commerce-data-platform_default
+  volumes:
+    - "/run/desktop/mnt/host/c/Users/smmhk/PycharmProjects/chocolate-commerce-data-platform:/project:ro"
+```
+
+이 경로는 현재 Docker Desktop 환경에서 성공한 값입니다. 프로젝트 폴더의 읽기 전용 설정은 PostgreSQL에 네트워크로 데이터를 쓰는 것을 막지 않습니다.
+
+## ✅ 4. 사전 검사 후 실제 상품 적재 성공
+
+`check_python_environment` flow로 다음을 순차 확인했습니다.
+
+| 검사 | 확인 결과 |
+|---|---|
+| Python 실행 | Python 3.14.0 실행 성공 |
+| 네트워크 | `postgres:5432` TCP 연결 성공 |
+| 파일 접근 | Python 모듈·상품 CSV·requirements.txt 존재 확인 |
+
+이후 실제 적재용 flow인 `online_products_to_postgres`를 실행했습니다.
+
+- task: `io.kestra.plugin.scripts.python.Commands`
+- namespace: `chocolate`
+- 준비 명령: `pip install -r /project/requirements.txt`
+- 실행 명령: `cd /project && python -m src.pipelines.online_to_postgres --tables products`
+
+2026-10-30 첫 적재 성공 로그의 핵심 결과:
+
+```text
+[INFO] Tables to load: products
+[SUCCESS] raw_online.products loaded (15 rows)
+[LOAD] products rows: 15
+[DONE] Online → PostgreSQL ingestion
+Command succeed with exit code 0
+```
+
+당시 전체 실행은 약 24초였으며 상당 부분은 패키지 설치에 사용됐습니다. 임시 작업 컨테이너는 종료 후 정리됐고, 초콜릿 DB와 Kestra 서비스는 유지됐습니다.
+
+```mermaid
+flowchart TD
+    A[Kestra 수동 Execute] --> B[Python 작업 컨테이너 생성]
+    B --> C[프로젝트 접근과 패키지 설치]
+    C --> D[기존 Python 모듈 실행]
+    D --> E[온라인 데이터 추출과 선별]
+    E --> F[상품 테이블 갱신과 실행 정보 기록]
+    F --> G[로그와 DB 결과 확인]
+```
+
+## ✅ 5. 적재 메타데이터와 실행 추적 추가
+
+동일한 CSV를 로컬과 Kestra에서 실행하면 행 수와 상품 내용이 같아 실행 주체를 구분하기 어려웠습니다. 원본 `updated_at`은 상품 수정일이므로 재적재 시각으로 바뀌지 않습니다.
+
+이를 구분하려고 `raw_online`의 5개 테이블에 다음 컬럼을 추가했습니다.
+
+| 컬럼 | 타입 | 의미 |
+|---|---|---|
+| `ingested_at` | `TIMESTAMPTZ` | 적재 실행에서 생성한 UTC 시각 |
+| `orchestrator` | `VARCHAR(50)` | 실행 경로 `local` 또는 `kestra` |
+| `pipeline_run_id` | `VARCHAR(100)` | 로컬 UUID 또는 Kestra execution ID |
+
+- 적용 테이블: products, customers, customer_addresses, orders, order_items
+- Python에서 실행당 한 번 생성한 메타데이터를 각 적재 DataFrame의 복사본에 추가
+- 로컬 기본값은 `local`, 실행 ID가 없으면 UUID 생성
+- Kestra는 아래 환경 변수로 실행 경로와 execution ID 전달
+
+```yaml
+env:
+  CHOCOLATE_DB_HOST: postgres
+  PYTHONDONTWRITEBYTECODE: "1"
+  PIPELINE_ORCHESTRATOR: kestra
+  PIPELINE_RUN_ID: "{{ execution.id }}"
+```
+
+확인 SQL:
+
+```sql
+SELECT
+    orchestrator,
+    pipeline_run_id,
+    ingested_at,
+    COUNT(*) AS row_count
+FROM raw_online.products
+GROUP BY orchestrator, pipeline_run_id, ingested_at;
+```
+
+**사용자가 온라인 상품의 Kestra 적재 결과를 DB에서도 확인했습니다.** 메타데이터 추가 후 실행 ID와 시각의 실제 값은 별도로 공유되지 않았으므로 임의로 기록하지 않습니다. 다른 4개 테이블은 컬럼 추가와 Kestra 적재 완료를 구분합니다.
+
+현재는 전체 갱신이므로 마지막 적재 정보만 남고, 과거 실행 전체 이력은 보관하지 않습니다. `ingested_at`은 Python에서 메타데이터를 생성한 시각이며 DB 커밋 시각 자체가 아닙니다. 오래된 CSV를 오늘 읽어도 이 값은 갱신되므로 원천 데이터의 최신성은 별도 판단해야 합니다.
+
+## ✅ 6. 스키마 변경과 문서 관리
+
+- DBeaver에서 온라인 5개 테이블의 컬럼 추가 ALTER를 실행했습니다.
+- `already exists, skipping`은 `ADD COLUMN IF NOT EXISTS`에 따른 정상 안내입니다.
+- 변경 SQL 파일을 `sql/migrations/001_add_ingestion_metadata.sql`로 관리하는 방향을 정했습니다. 이후 공유한 커밋 화면에서 이 파일과 `requirements.txt`가 새 파일로 표시된 것을 확인했습니다. 커밋 완료 여부는 별도 확인이 필요합니다.
+- 최초 CREATE와 후속 ALTER를 순서대로 적용하도록 관리합니다. 파일 저장만으로 STG에 자동 실행되지 않으며 마이그레이션 도구는 아직 연결하지 않았습니다.
+- Phase 3 상세 문서와 Entity Mapping 문서를 최신 진행 및 메타데이터 의미에 맞춰 업데이트했습니다.
+
+관련 파일:
+
+| 파일 | 변경 또는 역할 |
+|---|---|
+| `docker-compose.yml` | Kestra Docker runner 볼륨 허용 설정 |
+| `requirements.txt` | 컨테이너 패키지 설치 목록 |
+| `src/load/postgres/connection.py` | 환경 변수 기반 DB 연결 |
+| `src/pipelines/online_to_postgres.py` | 테이블 선택 옵션과 실행 메타데이터 |
+| `sql/migrations/001_add_ingestion_metadata.sql` | 적재 메타데이터 컬럼 추가 |
+| `docs/phase-3-kestra-orchestration-ko.md` | Phase 3 상세 과정과 현재 workflow 설정 |
+| Entity Mapping 문서 | 원천·Square 매핑과 분석용 적재 메타데이터 구분 |
+
+실제 workflow는 Kestra UI에 저장되어 있습니다. 프로젝트의 YAML 파일로도 저장했는지는 아직 확인하지 않았습니다.
+
+## 🧠 이번 작업에서 이해한 내용
+
+- Kestra가 기존 Python 로직을 실행하고, Python이 실제 데이터 읽기와 DB 적재를 수행합니다.
+- 코드 접근, 패키지 설치, 네트워크 연결, DB 인증은 서로 다른 준비·검증 항목입니다.
+- 포트 연결 성공과 파일 존재 확인만으로 DB 적재 성공을 판단하지 않습니다.
+- 같은 데이터를 재적재하면 행 수가 같으므로 실행 ID와 적재 시각이 추적에 도움이 됩니다.
+- `ingested_at`은 원천 `updated_at`이나 `square_synced_at`과 의미가 다릅니다.
+- 프로젝트 폴더를 읽기 전용으로 연결해도 DB 저장은 가능합니다.
+- 이번 실행은 수동 실행이며, 스케줄 자동화와 최신 CSV 생성 자동화는 아직 별도 작업입니다.
+
+---
+
 ## ▶️ 다음 작업
 
 ### Phase 3 — Kestra
 
-- [ ] 강의의 간단한 예제 YAML을 Kestra에 가져와 workflow 생성
-- [ ] 예제 workflow를 수동 실행하고 topology, logs, outputs 확인
-- [ ] Python task의 실행 방식과 파일 접근 방법을 강의에서 확인
-- [ ] 기존 파이프라인 하나를 선택하고 필요한 패키지·환경 변수·DB 연결 점검
-- [ ] 해당 파이프라인을 Kestra workflow에서 수동 실행
-- [ ] 실행 로그와 PostgreSQL 실제 적재 결과 확인
-- [ ] 다른 데이터 수집 파이프라인으로 확장
-- [ ] 필요에 따라 schedule trigger 및 동시 실행 제한 검토
-- [ ] Python 파이프라인 Dockerize의 필요성과 적용 시점 결정
+- [ ] Kestra inputs로 적재 대상 테이블을 선택하도록 workflow 확장
+- [ ] 온라인 전체 5개 테이블의 Kestra 적재와 메타데이터 검증
+- [ ] 실제 workflow YAML을 프로젝트 파일로 저장하고 Git에서 관리
+- [ ] 변경 코드·SQL·requirements·문서의 커밋 완료 여부 확인
+- [ ] Square 수집 파이프라인의 Kestra 연결
+- [ ] 필요에 따라 schedule trigger와 동시 실행 제한 설정
+- [ ] 패키지를 미리 포함한 프로젝트 Docker 이미지의 필요성 검토
+- [ ] 필요에 따라 Secret 전달, 빈 CSV 보호, 별도 실행 이력 관리 보완
 
 ### 함께 마무리할 확인 사항
 
-- [ ] 수정 후 온라인 테이블 행 수와 기존 검증 SQL 결과 최종 대조
+- [ ] 수정 후 온라인 전체 테이블의 행 수와 기존 검증 SQL 결과 최종 대조
 - [ ] Square 상품·고객·매장·주문 및 주문상품의 실제 테이블별 적재 범위와 검증 결과 기록
 - [ ] 온라인 가입 고객과 온라인 구매 고객의 범위 검토
 - [ ] 잘못된 스키마에 생성된 테이블이 있는지 확인 후 필요시 별도 정리
@@ -326,15 +541,15 @@ flowchart TD
 - [ ] Phase 4: BigQuery Raw Layer 및 수집 경로 구성
 - [ ] Phase 5: 온라인·오프라인 데이터 정제·표준화·통합 모델링
 - [ ] Phase 6: Power BI 분석 및 대시보드
-- [ ] 클라우드 작업을 구현한 뒤 필요에 따라 Kestra workflow 확장
+- [ ] 클라우드 작업 구현 후 Kestra workflow 확장
 
 ## 🎯 현재 가장 가까운 목표
 
-**Kestra 강의 예제 workflow를 직접 생성하고 실행한 뒤, 기존 Python 파이프라인 하나를 Kestra에서 수동 실행하는 방법을 이해합니다.**
+**상품 수동 적재의 성공 구성을 재사용해, Kestra에서 적재할 온라인 테이블을 선택하고 전체 데이터 적재까지 검증합니다.**
 
 | 수집 경로 | 원천 | 로컬 목적지 | 현재 상태 |
 |---|---|---|---|
-| 온라인 | CSV Export | `raw_online` | 적재 및 리팩토링 완료, 최종 검증 대조 남음 |
-| 오프라인 | Square Sandbox API | `raw_square` | 주문까지 적재 확인, 세부 테이블별 결과 정리 필요 |
+| 온라인 | CSV Export | `raw_online` | 로컬 적재 완료, Kestra 상품 15행 적재 및 DB 확인 완료 |
+| 오프라인 | Square Sandbox API | `raw_square` | 주문까지 로컬 적재 확인, Kestra 연결 예정 |
 
-Kestra는 Phase 3에서 도입하지만, 이후 GCS·BigQuery 및 데이터 모델링 관련 작업이 만들어지면 workflow를 확장하는 데 계속 사용할 수 있습니다.
+Kestra는 Phase 3에서 도입했으며 이후 GCS·BigQuery 및 모델링 작업에도 확장할 계획입니다. 현재까지의 성공 범위를 전체 파이프라인 자동화나 클라우드 적재 완료로 확대 해석하지 않습니다.
