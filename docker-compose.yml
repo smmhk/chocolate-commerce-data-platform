@@ -46,6 +46,12 @@ services:
             password: k3str4
 
         kestra:
+          plugins:
+            configurations:
+              - type: io.kestra.plugin.scripts.runner.docker.Docker
+                values:
+                  volume-enabled: true
+
           server:
             basicAuth:
               username: "admin@kestra.io"

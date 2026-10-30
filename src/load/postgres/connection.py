@@ -1,22 +1,30 @@
+import os
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Engine, URL
+
+
+load_dotenv()
+
 
 def get_postgres_engine() -> Engine:
-    """
-    PostgreSQL SQLAlchemy engine 생성
-    """
+    """환경 변수로 PostgreSQL 연결 정보를 읽어 엔진을 생성한다."""
 
-    user = "chocolate"
-    password = "chocolate123"
-    host = "localhost"
-    port = 5432
-    database = "chocolate_db"
+    password = os.getenv("CHOCOLATE_DB_PASSWORD")
 
-    connection_url = (
-        f"postgresql+psycopg2://{user}:{password}"
-        f"@{host}:{port}/{database}"
+    if not password:
+        raise ValueError(
+            "CHOCOLATE_DB_PASSWORD 환경 변수가 필요합니다."
+        )
+
+    connection_url = URL.create(
+        drivername="postgresql+psycopg2",
+        username=os.getenv("CHOCOLATE_DB_USER", "chocolate"),
+        password=password,
+        host=os.getenv("CHOCOLATE_DB_HOST", "localhost"),
+        port=int(os.getenv("CHOCOLATE_DB_PORT", "5432")),
+        database=os.getenv("CHOCOLATE_DB_NAME", "chocolate_db"),
     )
 
-    engine = create_engine(connection_url)
-
-    return engine
+    return create_engine(connection_url)
