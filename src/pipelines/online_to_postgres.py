@@ -1,12 +1,17 @@
 import argparse
-import os
+import logging
 from datetime import datetime, timezone
-from uuid import uuid4
+from time import monotonic
 
 from src.extract.online.load_online_data import load_online_data
 from src.transform.online.filter_online_data import filter_online_data
 from src.load.postgres.connection import get_postgres_engine
 from src.load.postgres.load_table import load_dataframe_to_postgres
+
+from src.pipelines.run_logging import log_stage, run_cli, run_metadata
+
+
+LOGGER = logging.getLogger(__spec__.name if __spec__ else __name__)
 
 
 LOAD_ORDER = (
@@ -19,57 +24,52 @@ LOAD_ORDER = (
 
 
 def run(tables=None):
-    # 입력 순서와 관계없이 기존 적재 순서를 유지
-    selected_tables = (
-        LOAD_ORDER if tables is None else tables
-    )
-    tables_to_load = [
-        name for name in LOAD_ORDER
-        if name in selected_tables
-    ]
+    selected_tables = LOAD_ORDER if tables is None else tables
+    tables_to_load = [name for name in LOAD_ORDER if name in selected_tables]
 
-    print("[START] Online → PostgreSQL ingestion")
-    print(f"[INFO] Tables to load: {', '.join(tables_to_load)}")
-
-    # 기존 추출·변환 로직 재사용
-    source_data = load_online_data()
-    online_data = filter_online_data(source_data)
-
-    # 한 번의 파이프라인 실행에 공통으로 사용할 메타데이터
     ingested_at = datetime.now(timezone.utc)
-    orchestrator = os.getenv("PIPELINE_ORCHESTRATOR", "local")
-    pipeline_run_id = (
-        os.getenv("PIPELINE_RUN_ID") or str(uuid4())
+    orchestrator, pipeline_run_id = run_metadata()
+    started = monotonic()
+    LOGGER.info(
+        "status=started orchestrator=%s pipeline_run_id=%s tables=%s",
+        orchestrator, pipeline_run_id, ",".join(tables_to_load),
     )
 
-    print(f"[RUN] orchestrator: {orchestrator}")
-    print(f"[RUN] pipeline_run_id: {pipeline_run_id}")
-    print(f"[RUN] ingested_at: {ingested_at.isoformat()}")
+    with log_stage(LOGGER, "extract", source="online_csv"):
+        source_data = load_online_data()
 
-    engine = get_postgres_engine()
+    with log_stage(LOGGER, "transform"):
+        online_data = filter_online_data(source_data)
+        for table_name in tables_to_load:
+            LOGGER.info(
+                "stage=transform table=%s input_rows=%d output_rows=%d",
+                table_name, len(source_data[table_name]), len(online_data[table_name]),
+            )
+
+    with log_stage(LOGGER, "connect"):
+        engine = get_postgres_engine()
 
     try:
         for table_name in tables_to_load:
-            
-            df = online_data[table_name].copy()
+            with log_stage(LOGGER, "load", table=f"raw_online.{table_name}"):
+                df = online_data[table_name].copy()
+                df["ingested_at"] = ingested_at
+                df["orchestrator"] = orchestrator
+                df["pipeline_run_id"] = pipeline_run_id
 
-            df["ingested_at"] = ingested_at
-            df["orchestrator"] = orchestrator
-            df["pipeline_run_id"] = pipeline_run_id
+                if df.empty:
+                    LOGGER.warning("stage=load table=raw_online.%s input_rows=0", table_name)
 
-            load_dataframe_to_postgres(
-                df=df,
-                table_name=table_name,
-                engine=engine,
-            )
-
-            print(
-                f"[LOAD] {table_name} rows: {len(df)}"
-            )
+                load_dataframe_to_postgres(df=df, table_name=table_name, engine=engine)
+                LOGGER.info("stage=load table=raw_online.%s loaded_rows=%d", table_name, len(df))
     finally:
-        engine.dispose()
+        with log_stage(LOGGER, "dispose"):
+            engine.dispose()
 
-    print("[DONE] Online → PostgreSQL ingestion")
+    LOGGER.info(
+        "status=completed pipeline_run_id=%s elapsed_seconds=%.3f",
+        pipeline_run_id, monotonic() - started,
+    )
 
 
 if __name__ == "__main__":
@@ -86,4 +86,4 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    run(tables=args.tables)
+    run_cli(run, tables=args.tables)

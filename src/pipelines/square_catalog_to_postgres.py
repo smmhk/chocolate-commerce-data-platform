@@ -1,47 +1,55 @@
-import os
+import logging
 from datetime import datetime, timezone
-from uuid import uuid4
+from time import monotonic
 
 from src.square.catalog import list_catalog_items
 from src.load.postgres.connection import get_postgres_engine
 from src.load.postgres.load_square_catalog import load_square_catalog
 
+from src.pipelines.run_logging import log_stage, run_cli, run_metadata
+
+
+LOGGER = logging.getLogger(__spec__.name if __spec__ else __name__)
+
 
 def run():
-    print("[START] Square catalog → PostgreSQL ingestion")
-
-    # 1. Extract: Square 상품 목록 조회
-    items = list_catalog_items()
-
-    print(f"[EXTRACT] total items: {len(items)}")
-
-    # 2. 실행 메타데이터 생성
     ingested_at = datetime.now(timezone.utc)
-    orchestrator = os.getenv("PIPELINE_ORCHESTRATOR", "local")
-    pipeline_run_id = (
-        os.getenv("PIPELINE_RUN_ID") or str(uuid4())
+    orchestrator, pipeline_run_id = run_metadata()
+    started = monotonic()
+    LOGGER.info(
+        "status=started orchestrator=%s pipeline_run_id=%s",
+        orchestrator, pipeline_run_id,
     )
 
-    print(f"[RUN] orchestrator: {orchestrator}")
-    print(f"[RUN] pipeline_run_id: {pipeline_run_id}")
-    print(f"[RUN] ingested_at: {ingested_at.isoformat()}")
+    with log_stage(LOGGER, "extract", source="square", resource="catalog"):
+        items = list_catalog_items()
 
-    # 3. Load: 상품 JSON과 메타데이터 저장
-    engine = get_postgres_engine()
+    LOGGER.info("stage=extract extracted_rows=%d", len(items))
+
+    with log_stage(LOGGER, "connect"):
+        engine = get_postgres_engine()
 
     try:
-        load_square_catalog(
-            items=items,
-            engine=engine,
-            ingested_at=ingested_at,
-            orchestrator=orchestrator,
-            pipeline_run_id=pipeline_run_id,
-        )
+        with log_stage(LOGGER, "load", table="raw_square.catalog_objects"):
+            if not items:
+                LOGGER.warning("stage=load table=raw_square.catalog_objects input_rows=0")
+            load_square_catalog(
+                items=items,
+                engine=engine,
+                ingested_at=ingested_at,
+                orchestrator=orchestrator,
+                pipeline_run_id=pipeline_run_id,
+            )
+            LOGGER.info("stage=load table=raw_square.catalog_objects processed_rows=%d", len(items))
     finally:
-        engine.dispose()
+        with log_stage(LOGGER, "dispose"):
+            engine.dispose()
 
-    print("[DONE] Square catalog → PostgreSQL ingestion")
+    LOGGER.info(
+        "status=completed pipeline_run_id=%s elapsed_seconds=%.3f",
+        pipeline_run_id, monotonic() - started,
+    )
 
 
 if __name__ == "__main__":
-    run()
+    run_cli(run)

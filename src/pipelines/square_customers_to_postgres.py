@@ -1,45 +1,55 @@
-import os
+import logging
 from datetime import datetime, timezone
-from uuid import uuid4
+from time import monotonic
 
 from src.square.customers import list_customers
 from src.load.postgres.connection import get_postgres_engine
 from src.load.postgres.load_square_customers import load_square_customers
 
+from src.pipelines.run_logging import log_stage, run_cli, run_metadata
+
+
+LOGGER = logging.getLogger(__spec__.name if __spec__ else __name__)
+
 
 def run():
-    print("[START] Square customers → PostgreSQL ingestion")
-
-    # 1. Extract: Square 고객 조회
-    customers = list_customers()
-
-    # 2. 실행 메타데이터 생성
     ingested_at = datetime.now(timezone.utc)
-    orchestrator = os.getenv("PIPELINE_ORCHESTRATOR", "local")
-    pipeline_run_id = (
-        os.getenv("PIPELINE_RUN_ID") or str(uuid4())
+    orchestrator, pipeline_run_id = run_metadata()
+    started = monotonic()
+    LOGGER.info(
+        "status=started orchestrator=%s pipeline_run_id=%s",
+        orchestrator, pipeline_run_id,
     )
 
-    print(f"[RUN] orchestrator: {orchestrator}")
-    print(f"[RUN] pipeline_run_id: {pipeline_run_id}")
-    print(f"[RUN] ingested_at: {ingested_at.isoformat()}")
+    with log_stage(LOGGER, "extract", source="square", resource="customers"):
+        customers = list_customers()
 
-    # 3. Load: 고객 JSON과 메타데이터 저장
-    engine = get_postgres_engine()
+    LOGGER.info("stage=extract extracted_rows=%d", len(customers))
+
+    with log_stage(LOGGER, "connect"):
+        engine = get_postgres_engine()
 
     try:
-        load_square_customers(
-            customers=customers,
-            engine=engine,
-            ingested_at=ingested_at,
-            orchestrator=orchestrator,
-            pipeline_run_id=pipeline_run_id,
-        )
+        with log_stage(LOGGER, "load", table="raw_square.customers"):
+            if not customers:
+                LOGGER.warning("stage=load table=raw_square.customers input_rows=0")
+            load_square_customers(
+                customers=customers,
+                engine=engine,
+                ingested_at=ingested_at,
+                orchestrator=orchestrator,
+                pipeline_run_id=pipeline_run_id,
+            )
+            LOGGER.info("stage=load table=raw_square.customers processed_rows=%d", len(customers))
     finally:
-        engine.dispose()
+        with log_stage(LOGGER, "dispose"):
+            engine.dispose()
 
-    print("[DONE] Square customers → PostgreSQL ingestion")
+    LOGGER.info(
+        "status=completed pipeline_run_id=%s elapsed_seconds=%.3f",
+        pipeline_run_id, monotonic() - started,
+    )
 
 
 if __name__ == "__main__":
-    run()
+    run_cli(run)
