@@ -77,6 +77,8 @@ services:
     depends_on:
       kestra_postgres:
         condition: service_healthy
+    env_file:
+      - .env.kestra    
 
 volumes:
   chocolate_postgres_data:
