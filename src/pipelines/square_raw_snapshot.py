@@ -25,6 +25,7 @@ TABLE_COLUMNS = {
     "locations": ("square_location_id", *METADATA_COLUMNS),
     "customers": ("square_customer_id", *METADATA_COLUMNS),
     "catalog_objects": ("square_object_id", "object_type", *METADATA_COLUMNS),
+    "orders": ("square_order_id", *METADATA_COLUMNS),
 }
 
 
