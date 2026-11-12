@@ -3,18 +3,17 @@
 Charlie’s Chocolate Factory — Omnichannel Retail Data Platform
 
 > 시작일: 2026-10-31  
-> 최종 업데이트: **2026-11-10**  
-> 현재 상태: 🟢 **Phase 4A — Products End-to-End 파이프라인 구현·검증 완료** / 나머지 테이블 확장 예정 / **Phase 4B(dbt)는 미구현**  
-> 이번 업데이트: Products PostgreSQL → CSV → GCS → BigQuery → Validation 실행 성공, Kestra Logging 확인, Jira 작업 상태 반영
+> 최종 업데이트: **2026-11-11 (밴쿠버 현지 기준)**  
+> 현재 상태: 🟢 **Phase 4A — Online Products, Square Locations·Customers 적재 및 검증 성공** / **Phase 4B(dbt)는 설계 완료, 구현 전**  
+> 이번 업데이트: Locations 추출·검증 공통화, Square Customers Kestra 실행 성공, 테이블별 Flow와 소스별 상위 Flow 구성 계획 반영
 
 이 문서는 Charlie’s Chocolate Factory의 **Phase 4 구현 방향, 학습 기록, 실제 완료 여부**를 함께 관리한다.
 기존 문서에서는 Phase 4를 GCS·BigQuery raw 적재까지만 다루고 dbt 모델링을 Phase 5로 분리했지만,
 **2026-11-05 이후의 결정에 따라 Phase 4를 `4A. Cloud Ingestion`과 `4B. dbt Transformation & Modeling`으로 확장**했다.
 
-> **현재 구현 범위(2026-11-10):** `raw_online.products` 한 테이블은 Kestra의 4개 태스크를 통해 CSV export → GCS 업로드 → BigQuery raw 적재 → Python Validation까지 **실제 실행 성공**했다.
-> GCS 원본 CSV 15행과 BigQuery 15행의 19개 컬럼을 비교했으며 불일치 0건, `validation=passed` 로그가 남았다.
-> 이 결과는 **Products 테이블에 한정**한다. 나머지 Online/Square 테이블의 Cloud Ingestion 및 dbt 모델링까지 완료한 것은 아니다.
-> 앞서 학습한 BigQuery Federated Query, IAM, dbt 강의 실습은 별도 실습이며, 이 프로젝트의 구현 완료로 합산하지 않는다.
+> **현재 구현 범위:** `raw_online.products`, `raw_square.locations`, `raw_square.customers`는 Kestra에서 PostgreSQL → CSV → GCS → BigQuery → Python 검증 경로를 실행했다.
+> Products는 15행·19개 컬럼 비교에서 불일치 0건이었다. Locations는 BigQuery에서 전체 5행, 고유 매장 ID 5개, 잘못된 JSON 0건을 확인했다. Locations 공통화와 Customers 추가 이후 Kestra 실행 성공은 사용자가 확인했다. 고객 행 수와 최종 실행 ID는 이 문서에 기록할 로그가 아직 없다.
+> Square Catalog Objects·Orders와 Online 나머지 4개 테이블은 후속 범위다. 별도로 진행한 Federated Query, IAM, dbt 학습은 프로젝트 구현 범위와 구분한다.
 
 ---
 
@@ -30,7 +29,7 @@ Charlie’s Chocolate Factory — Omnichannel Retail Data Platform
 
 위 실행 성공은 이전 작업과 대화에서 확인한 결과다. 이번 설계 기록을 작성하면서 DB·API·Kestra를 다시 실행한 것은 아니다.
 
-### 2026-11-10 기준 상태 요약
+### 2026-11-11 기준 상태 요약
 
 | 항목 | 상태 | 확인 내용 / 다음 작업 |
 |---|---|---|
@@ -42,12 +41,15 @@ Charlie’s Chocolate Factory — Omnichannel Retail Data Platform
 | BigQuery raw 적재 | ✅ **Products 완료** | `chocolate-data-platform.raw_online.products`에 15행 |
 | Python 적재 검증 | ✅ **Products 완료** | CSV 15행 ↔ BigQuery 15행, 19개 컬럼, 불일치 0, `validation=passed` |
 | Jira CHOC-5 / CHOC-6 | ✅ Done | 원본·대상 비교 및 데이터 품질 검증 기록 |
-| Jira CHOC-4 / CHOC-7 | 🟡 진행 중 | 상위 Products 작업 / GitHub 문서 정리 |
-| 나머지 Online / Square Cloud Ingestion | ⬜ 미구현 | Products 방식 확장, Square JSONB 처리 결정 |
+| Square Locations | ✅ 적재·검증 완료 | `raw_square.locations`, BigQuery 기본 점검 5 / 5 / 0, 공통 추출·검증 적용 |
+| Square Customers | ✅ Kestra 실행 성공 | `raw_square.customers`, 동일 실행의 CSV와 BigQuery 행을 고객 ID로 비교 |
+| Jira CHOC-4 / CHOC-7 | ✅ 완료 | Products 상위 작업 및 문서 정리 |
+| Square 후속 적재 | 🟡 진행 중 | CHOC-12의 Catalog Objects 및 CHOC-13의 Orders |
+| Online 후속 적재 | ⬜ 대기 | CHOC-15 하위의 고객·고객 주소·주문·주문 상품 |
 | dbt 초기화·BigQuery 연결 | ⬜ 미구현 | `dbt init`, `dbt debug` 예정 |
 | dbt Staging → Intermediate → Marts | 🟡 설계 결정, 미구현 | BigQuery SQL 모델과 데이터 테스트 작성 |
 
-**확인 범위:** 이 문서는 사용자가 공유한 Kestra YAML, Python 검증 코드, 2026-11-10 실행 로그, BigQuery 조회 결과와 Jira 상태를 기준으로 업데이트했다. GitHub 원격 저장소의 실제 커밋 내용은 여기서 직접 검사하지 않았다.
+**확인 범위:** 이 문서는 사용자가 공유한 Kestra YAML, Python 검증 코드, 공유된 실행 로그, BigQuery 조회 결과, 사용자가 확인한 Kestra 결과와 Jira 상태를 기준으로 업데이트했다. GitHub 원격 저장소의 실제 커밋 내용은 여기서 직접 검사하지 않았다.
 
 ### 현재 PostgreSQL 저장 범위
 
@@ -84,12 +86,12 @@ flowchart TD
     I --> J["향후 BI·대시보드"]
 ```
 
-- **구현 완료:** 온라인·Square → PostgreSQL 수집 흐름 + `raw_online.products`의 PostgreSQL → CSV → GCS → BigQuery raw → Validation.
-- **Phase 4A (Cloud Ingestion):** Products에서 검증한 경로를 나머지 Online 4개·Square 4개 테이블로 확장할 계획.
+- **구현 완료:** Online·Square → PostgreSQL 수집 흐름과 Products, Square Locations·Customers의 BigQuery 적재·검증.
+- **Phase 4A (Cloud Ingestion):** Square Catalog Objects·Orders와 Online 4개 테이블을 확장할 계획.
 - **Phase 4B (dbt Transformation):** BigQuery raw → Staging → Intermediate → Marts 및 데이터 품질 테스트는 **미구현**.
 - **후속 작업:** Marts 기반 분석·시각화 및 포트폴리오 정리.
 
-Kestra는 Products에서 export·GCS Upload·BigQuery LOAD DATA·검증 태스크를 **순서대로 실행하도록 구성했고, 실제 실행 성공을 확인했다.** 이후 dbt 실행을 Kestra와 연결하는 것은 아직 계획 단계다.
+Kestra에서 테이블별 Flow가 export → GCS Upload → BigQuery LOAD DATA → 검증을 순서대로 실행한다. 테이블별 Flow를 검증한 뒤 소스별 상위 Flow에서 호출할 계획이다.
 
 ---
 
@@ -164,11 +166,11 @@ PostgreSQL에 있는 기존 메타데이터는 원래 적재 실행을 설명한
 |---|---|
 | CSV quoting | JSON의 따옴표·쉼표·줄바꿈이 필드를 깨뜨리지 않도록 처리 |
 | JSON 직렬화 | 유효한 JSON 문자열로 보존하고 Python dict의 단순 문자열 표현과 구분 |
-| BigQuery payload 타입 | STRING으로 적재 후 JSON 해석할지 등 실제 적재 방식 결정 |
+| BigQuery payload 타입 | Locations와 Customers는 `STRING`으로 적재하고 검증 시 JSON 객체로 파싱 가능한지 확인 |
 | 중첩 구조 | 이후 SQL에서 필요한 필드·배열을 추출 |
 | 대안 형식 | 필요하면 newline-delimited JSON 등과 비교 |
 
-**현재 결정:** 온라인·Square 모두 PostgreSQL에서 export하는 경로를 채택한다. CSV는 두 영역 모두 가능한 방식으로 검토하되, Square payload의 실제 export·재적재 결과를 확인한 뒤 최종 파일 형식과 BigQuery 타입을 확정한다.
+**현재 구현:** Locations와 Customers는 PostgreSQL의 `payload::text`를 UTF-8 CSV 한 필드로 저장하고 BigQuery에 `STRING`으로 적재한다. `ingested_at`은 UTC로 기록하고 nullable 메타데이터의 NULL은 `\N`으로 표현한다. 검증은 기본키를 기준으로 JSON 텍스트와 메타데이터 값을 비교한다.
 
 CSV에는 PostgreSQL의 컬럼 타입·기본키·제약조건이 그대로 전달되지 않는다. PostgreSQL 스키마를 참고하여 **BigQuery용 스키마를 별도로 정의**해야 한다.
 
@@ -263,13 +265,13 @@ Command succeed with exit code 0
 - Products는 파일과 BigQuery 15행/19개 컬럼 비교를 통과했다. 다른 테이블이 동일하게 검증됐다는 뜻은 아니다.
 - PostgreSQL에서 여러 테이블을 순서대로 export한다고 자동으로 같은 시점의 스냅샷이 보장되지는 않는다. 확장 시 실행 시점·일관성·재실행 정책을 별도로 설계한다.
 
-## 7. Phase 범위와 dbt 도입 결정 (2026-11-10 기준)
+## 7. Phase 범위와 dbt 도입 결정 (2026-11-11 기준)
 
 | 구간 | 목표 | 상태 |
 |---|---|---|
 | Phase 3 — Workflow Orchestration | Online / Square → PostgreSQL 수집·적재 자동화 | ✅ 이전 구현 기록 |
 | Phase 3 보완 — Observability | Python 공통 Logging, 오류 및 실행 단계 확인 | 🟢 Products 검증 Flow에서 확인 / 나머지 코드 반영 범위 확인 필요 |
-| Phase 4A — Cloud Ingestion | PostgreSQL → CSV → GCS → BigQuery raw → Validation | ✅ **Products 한 테이블 구현·검증 완료**, 나머지는 미구현 |
+| Phase 4A — Cloud Ingestion | PostgreSQL → CSV → GCS → BigQuery raw → Validation | 🟡 **Products, Square Locations·Customers 구현·검증 완료**, 나머지 테이블 확장 예정 |
 | Phase 4B — Transformation & Modeling | BigQuery + dbt로 Staging → Intermediate → Marts | 🟡 설계 결정, 미구현 |
 | 후속 분석 단계 | Marts 기반 매출·고객·상품 분석 및 시각화 | ⬜ 미구현 |
 
@@ -313,27 +315,23 @@ Command succeed with exit code 0
 - [x] BigQuery SQL로 ID 중복, NULL, 음수 가격 및 메타데이터 기본 점검 수행 (Jira CHOC-6)
 - [x] PostgreSQL ↔ BigQuery 원본 비교 작업 완료 처리 (Jira CHOC-5; 상세 조회 수치는 별도 로그로 남지 않음)
 - [x] `validate_products_load.py` 로그에서 `validation=passed`, mismatch 0, exit code 0 확인
-- [ ] GitHub에 올린 코드에 인증 키가 없는지 최종 점검하고 Phase 4 문서 정리 (Jira CHOC-7)
+- [x] Products 코드 커밋 및 문서 정리 일감 완료 처리 (Jira CHOC-7)
 
 > **이번 성공 범위:** Products raw 스냅샷의 파일·테이블 동등성까지 검증했다. 향후 스케줄 운영, 대용량 처리, 동시 실행 및 전체 소스 테이블 확장은 별도 작업이다.
 
-### 8.3 Square 데이터 하나로 JSON 보존 검증 (미착수)
+### 8.3 Square Locations와 Customers 적재·검증
 
-- [ ] `raw_square` 테이블 하나를 선정
-- [ ] payload 직렬화와 CSV quoting 확인
-- [ ] STRING/JSON 처리 방식과 파일 형식 결정
-- [ ] JSON의 중첩 구조와 메타데이터 보존 확인
-- [ ] BigQuery에서 필요한 필드를 정상적으로 읽는지 확인
+- [x] Locations 5행을 CSV로 추출하고 GCS와 BigQuery에 적재했다.
+- [x] Locations에서 전체 5행, 고유 ID 5개, JSON 객체 파싱 실패 0건을 확인했다.
+- [x] Locations의 추출·검증 실행 파일을 공통 함수에 연결했다.
+- [x] Customers 추출·적재·검증 Flow를 만들고 Kestra 실행 성공을 확인했다.
 
-### 8.4 나머지 테이블로 확장 (미착수)
+### 8.4 나머지 테이블과 상위 Flow
 
-- [ ] 완료된 Products를 제외한 **온라인 4개 + Square 4개 테이블**로 클라우드 파이프라인 확장
-- [ ] 테이블별 스키마와 export 규칙 정리
-- [ ] 수집 시점·실행 ID를 구분할 경로 또는 manifest 규칙 결정
-- [ ] 재실행 시 파일 덮어쓰기·이력 보존·BigQuery 중복 적재 정책 결정
-- [ ] 기존 적재 → export → 업로드 → BigQuery 적재의 상위 Flow 연결
-- [ ] 실패 후 재실행 범위와 동시 실행 정책 검토
-- [ ] 수동 전체 실행 검증 후 필요에 따라 스케줄 추가
+- [ ] Square Catalog Objects (CHOC-12), Square Orders (CHOC-13)의 개별 Flow를 구현하고 검증한다.
+- [ ] Online 고객·고객 주소·주문·주문 상품의 개별 Flow를 구현하고 검증한다 (CHOC-15).
+- [ ] 개별 실행을 검증한 뒤 Online과 Square 각각의 상위 Flow를 만들어 테이블별 Flow를 호출한다.
+- [ ] 소스별 전체 실행과 실패한 하위 Flow 재실행을 확인하고 동시 실행 및 스케줄 정책을 정한다.
 
 ### 8.5 dbt BigQuery 프로젝트 준비 (Phase 4B — 미착수)
 
@@ -388,11 +386,11 @@ dbt가 **BigQuery에 SQL을 실행**하고 결과 View/Table을 **BigQuery 안�
 | 항목 | 현재 결정 / 다음에 결정할 내용 |
 |---|---|
 | Products export 코드 | `src.pipelines.postgres_to_file` 구현 완료. 나머지 테이블로 범용화할지 결정 |
-| 파일 형식 | Products: CSV 구현. Square JSONB는 CSV quoting/NDJSON 등 비교 후 확정 |
+| 파일 형식 | Products, Locations, Customers는 CSV로 검증 완료. Catalog와 Orders에서 JSON payload 크기·내용을 확인한다. |
 | GCS 경로 | Products: `raw_online/products/{{ execution.id }}/products.csv`. 다른 테이블에도 규칙 확장 |
-| BigQuery 스키마 | Products: 19개 컬럼 구현·검증. Square payload와 나머지 테이블 스키마는 미정 |
-| 업로드 구현 | Products: Kestra GCS Upload 플러그인 사용 완료 |
-| 재실행 정책 | Products: `LOAD DATA OVERWRITE`로 raw 교체. GCS 스냅샷 보존, 운영 시점/동시 실행 정책 추가 설계 |
+| BigQuery 스키마 | Products 19개 컬럼 검증 완료. Locations·Customers의 payload는 STRING. Catalog는 기본키와 object_type을 포함해 정의한다. |
+| 업로드 구현 | 세 테이블 모두 Kestra GCS Upload 사용 |
+| 재실행 정책 | 세 테이블은 `LOAD DATA OVERWRITE`로 raw 교체. GCS 스냅샷 보존, 운영 시점/동시 실행 정책 추가 설계 |
 | BigQuery 적재 방식 | Products: Native raw table. 다른 테이블 External Table 활용 여부는 필요 시 검토 |
 | 메타데이터 | PostgreSQL 원본 `ingested_at`/`pipeline_run_id`와 Cloud 실행 ID 차이 정리, 필요 시 `loaded_at` 설계 |
 | dbt 출력 대상 | dev Dataset, 스키마 명명 규칙, 모델별 View/Table 방식 결정 |
@@ -481,6 +479,14 @@ GitHub에 코드는 검증 전에 이미 Commit/Push한 상태라고 기록했�
 
 ---
 
+### 2026-11-11 — Square Locations 공통화와 Customers 적재
+
+- Locations Flow는 PostgreSQL에서 5행을 읽어 GCS에 CSV를 저장하고 BigQuery에 적재했다. 최초 BigQuery 적재에서 `raw_square`의 `bigquery.tables.create` 권한 오류가 발생했고, 데이터셋 권한 점검 후 적재 및 기본 점검을 완료했다.
+- Locations의 기존 export·validate 실행 파일과 Customers의 신규 실행 파일은 공통 `export()`와 `validate()`를 호출한다. 테이블별로 기본키와 컬럼 순서를 지정한다. Customers는 `square_customer_id`, Locations는 `square_location_id`로 같은 실행의 GCS CSV와 BigQuery 행을 매칭한다.
+- Kestra에서 `chocolate.square_locations_to_file`과 `chocolate.square_customers_to_file`을 테이블별로 관리한다. 공통화 적용 후 사용자가 Customers까지 실행 성공을 확인했다.
+- Square GCS 경로는 `raw_square/<table>/{{ execution.id }}/<table>.csv`다. CSV에 기록된 PostgreSQL 적재 메타데이터와 GCS 경로의 Kestra 실행 ID를 구분한다.
+- Jira에서 Locations 작업 CHOC-9~11은 완료, Customers·Catalog 작업 CHOC-12는 진행 중이다. CHOC-12의 남은 범위는 Catalog Objects의 실제 Kestra 적재·검증이다.
+
 ## 10. 최근 학습 기록과 프로젝트 연결
 
 ### 2026-11-01 ~ 11-03 — GCP / BigQuery 강의 및 Federated Query 실습
@@ -543,21 +549,13 @@ Kestra로 여러 개의 Flow를 관리하면서 **실행 성공 여부만으로�
 
 ---
 
-## 11. 다음 실행 순서 (우선순위, 2026-11-10)
+## 11. 다음 실행 순서 (2026-11-11 기준)
 
-- [x] **Products CSV export → GCS → BigQuery raw → Python Validation** 최초 End-to-End 실행 성공
-- [x] **CHOC-5:** PostgreSQL / BigQuery 상품 데이터 비교 작업 완료 처리
-- [x] **CHOC-6:** BigQuery 기본 품질 확인, 메타데이터 및 Kestra 검증 로그 확인 후 완료 처리
-- [ ] **CHOC-7:** Phase 4 문서 업데이트 반영 후 Git 상태·민감정보·최종 Push 확인
-- [ ] **CHOC-4:** CHOC-7 완료 후 Products 상위 작업 Done 처리
-- [ ] **Online 4개 + Square 4개**로 Cloud Ingestion 확장하기 (Square payload 처리 방식 먼저 검증)
-- [ ] **Logging:** 기존 수집 Python 코드 전체의 공통 Logging 적용 범위 확인
-- [ ] **재실행/운영:** 메타데이터 의미, GCS 파일 이력, BigQuery 덮어쓰기·동시 실행 정책 검토
-- [ ] **Phase 4B:** `dbt init chocolate_dbt` / `dbt debug`로 BigQuery 연결하기
-- [ ] **Phase 4B:** Staging → Intermediate → Marts 모델과 dbt 테스트 구현
-- [ ] **후속:** Kestra에서 `dbt build` 연동 및 BI 대시보드 연결
-
-**바로 다음 시작 지점:** CHOC-7에 해당하는 Git/문서 작업부터 마무리한다. 이후 다른 raw 테이블 확장 여부와 dbt 시작 순서를 결정한다.
+1. [CHOC-12](https://smmhk21.atlassian.net/browse/CHOC-12)의 Catalog Objects를 개별 Kestra Flow로 실행한다. `square_object_id`와 `object_type`을 포함한 CSV와 BigQuery 값을 비교한다.
+2. [CHOC-13](https://smmhk21.atlassian.net/browse/CHOC-13)에서 Square Orders 적재·검증을 구현하고, CHOC-14에서 Square 전체를 확인한다.
+3. [CHOC-15](https://smmhk21.atlassian.net/browse/CHOC-15)의 Online 고객(CHOC-16), 고객 주소(CHOC-17), 주문(CHOC-19), 주문 상품(CHOC-18) Flow를 검증한다.
+4. 개별 Flow가 준비되면 `square_raw_ingestion`, `online_raw_ingestion`을 소스별 상위 Flow로 추가한다. 이름은 현재 계획이다.
+5. Phase 4B에서 `dbt init`과 `dbt debug`로 BigQuery 연결을 확인하고 Staging → Intermediate → Marts 모델과 테스트를 구현한다.
 
 ## 12. 이후 작업 기록 양식
 
