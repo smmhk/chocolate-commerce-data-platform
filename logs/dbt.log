@@ -1,0 +1,100 @@
+[0m18:27:04.059832 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001602F38ABA0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001602CF64A50>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x0000016031DAB890>]}
+
+
+============================== 18:27:04.070069 | c1a01272-25ac-4aea-b896-3c47c9e30e0b ==============================
+[0m18:27:04.070069 [info ] [MainThread]: Running with dbt=1.13.0-b1
+[0m18:27:04.071112 [debug] [MainThread]: running dbt with arguments {'version_check': 'True', 'no_print': 'None', 'static_parser': 'True', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'target_path': 'None', 'maximum_seed_size_mib': '1', 'printer_width': '80', 'write_json': 'True', 'empty': 'None', 'log_cache_events': 'False', 'introspect': 'True', 'cache_selected_only': 'False', 'fail_fast': 'False', 'debug': 'False', 'log_format': 'default', 'profiles_dir': 'C:\\Users\\smmhk\\.dbt', 'send_anonymous_usage_stats': 'True', 'quiet': 'False', 'warn_error': 'None', 'partial_parse': 'True', 'use_colors': 'True', 'hints_enabled': 'True', 'indirect_selection': 'eager', 'use_experimental_parser': 'False', 'invocation_command': 'dbt init chocolate_dbt', 'log_path': 'logs'}
+[0m18:27:04.072005 [debug] [MainThread]: Tracking: tracking
+[0m18:27:04.144986 [info ] [MainThread]: Creating dbt configuration folder at C:\Users\smmhk\.dbt
+[0m18:27:04.150427 [debug] [MainThread]: Starter project path: C:\Users\smmhk\PycharmProjects\chocolate-commerce-data-platform\.venv\Lib\site-packages\dbt\include\starter_project
+[0m18:27:04.188416 [info ] [MainThread]: Setting up your profile.
+[0m18:35:42.904406 [info ] [MainThread]: Profile chocolate_dbt written to C:\Users\smmhk\.dbt\profiles.yml using target's profile_template.yml and your supplied values.
+[0m18:35:42.910218 [info ] [MainThread]: Running dbt debug to validate the project...
+[0m18:35:42.911410 [info ] [MainThread]: dbt version: 1.13.0-b1
+[0m18:35:42.912230 [info ] [MainThread]: python version: 3.14.0
+[0m18:35:42.913089 [info ] [MainThread]: python path: C:\Users\smmhk\PycharmProjects\chocolate-commerce-data-platform\.venv\Scripts\python.exe
+[0m18:35:42.913855 [info ] [MainThread]: os info: Windows-11-10.0.26200-SP0
+[0m18:35:43.025239 [info ] [MainThread]: Using profiles dir at C:\Users\smmhk\.dbt
+[0m18:35:43.026153 [info ] [MainThread]: Using profiles.yml file at C:\Users\smmhk\.dbt\profiles.yml
+[0m18:35:43.026795 [info ] [MainThread]: Using dbt_project.yml file at C:\Users\smmhk\PycharmProjects\chocolate-commerce-data-platform\chocolate_dbt\dbt_project.yml
+[0m18:35:43.027394 [info ] [MainThread]: adapter type: bigquery
+[0m18:35:43.027964 [info ] [MainThread]: adapter version: 1.12.3
+[0m18:35:43.168581 [info ] [MainThread]: Configuration:
+[0m18:35:43.169281 [info ] [MainThread]:   profiles.yml file [[32mOK found and valid[0m]
+[0m18:35:43.170124 [info ] [MainThread]:   dbt_project.yml file [[32mOK found and valid[0m]
+[0m18:35:43.170662 [info ] [MainThread]: Required dependencies:
+[0m18:35:43.171138 [debug] [MainThread]: Executing "git --help"
+[0m18:35:43.243486 [debug] [MainThread]: STDOUT: "b"usage: git [-v | --version] [-h | --help] [-C <path>] [-c <name>=<value>]\n           [--exec-path[=<path>]] [--html-path] [--man-path] [--info-path]\n           [-p | --paginate | -P | --no-pager] [--no-replace-objects] [--no-lazy-fetch]\n           [--no-optional-locks] [--no-advice] [--bare] [--git-dir=<path>]\n           [--work-tree=<path>] [--namespace=<name>] [--config-env=<name>=<envvar>]\n           <command> [<args>]\n\nThese are common Git commands used in various situations:\n\nstart a working area (see also: git help tutorial)\n   clone      Clone a repository into a new directory\n   init       Create an empty Git repository or reinitialize an existing one\n\nwork on the current change (see also: git help everyday)\n   add        Add file contents to the index\n   mv         Move or rename a file, a directory, or a symlink\n   restore    Restore working tree files\n   rm         Remove files from the working tree and from the index\n\nexamine the history and state (see also: git help revisions)\n   bisect     Use binary search to find the commit that introduced a bug\n   diff       Show changes between commits, commit and working tree, etc\n   grep       Print lines matching a pattern\n   log        Show commit logs\n   show       Show various types of objects\n   status     Show the working tree status\n\ngrow, mark and tweak your common history\n   backfill   Download missing objects in a partial clone\n   branch     List, create, or delete branches\n   commit     Record changes to the repository\n   history    EXPERIMENTAL: Rewrite history\n   merge      Join two or more development histories together\n   rebase     Reapply commits on top of another base tip\n   reset      Set `HEAD` or the index to a known state\n   switch     Switch branches\n   tag        Create, list, delete or verify tags\n\ncollaborate (see also: git help workflows)\n   fetch      Download objects and refs from another repository\n   pull       Fetch from and integrate with another repository or a local branch\n   push       Update remote refs along with associated objects\n\n'git help -a' and 'git help -g' list available subcommands and some\nconcept guides. See 'git help <command>' or 'git help <concept>'\nto read about a specific subcommand or concept.\nSee 'git help git' for an overview of the system.\n""
+[0m18:35:43.244041 [debug] [MainThread]: STDERR: "b''"
+[0m18:35:43.244507 [info ] [MainThread]:  - git [[32mOK found[0m]
+
+[0m18:35:43.244995 [info ] [MainThread]: Connection:
+[0m18:35:43.245586 [info ] [MainThread]:   method: oauth
+[0m18:35:43.245981 [info ] [MainThread]:   database: chocolate-data-platform
+[0m18:35:43.246445 [info ] [MainThread]:   execution_project: chocolate-data-platform
+[0m18:35:43.246850 [info ] [MainThread]:   schema: dbt_dev
+[0m18:35:43.247274 [info ] [MainThread]:   location: US
+[0m18:35:43.247656 [info ] [MainThread]:   priority: interactive
+[0m18:35:43.248063 [info ] [MainThread]:   maximum_bytes_billed: None
+[0m18:35:43.248439 [info ] [MainThread]:   reservation: None
+[0m18:35:43.248840 [info ] [MainThread]:   impersonate_service_account: None
+[0m18:35:43.249265 [info ] [MainThread]:   job_retry_deadline_seconds: None
+[0m18:35:43.249635 [info ] [MainThread]:   job_retries: 1
+[0m18:35:43.250016 [info ] [MainThread]:   job_creation_timeout_seconds: None
+[0m18:35:43.250416 [info ] [MainThread]:   job_execution_timeout_seconds: 300
+[0m18:35:43.250805 [info ] [MainThread]:   job_link_info_level_log: False
+[0m18:35:43.251185 [info ] [MainThread]:   timeout_seconds: 300
+[0m18:35:43.251520 [info ] [MainThread]:   client_id: None
+[0m18:35:43.251871 [info ] [MainThread]:   token_uri: None
+[0m18:35:43.252260 [info ] [MainThread]:   compute_region: None
+[0m18:35:43.252628 [info ] [MainThread]:   dataproc_cluster_name: None
+[0m18:35:43.252936 [info ] [MainThread]:   gcs_bucket: None
+[0m18:35:43.253417 [info ] [MainThread]:   dataproc_batch: None
+[0m18:35:43.254108 [info ] [MainThread]: Registered adapter: bigquery=1.12.3
+[0m18:35:44.327115 [debug] [MainThread]: Acquiring new bigquery connection 'debug'
+[0m18:35:44.327563 [debug] [MainThread]: On debug: select 1 as id
+[0m18:35:44.327951 [debug] [MainThread]: Opening a new connection, currently in state init
+[0m18:35:47.308493 [debug] [MainThread]: BigQuery adapter: Got an error when attempting to create a bigquery " "client: 'Runtime Error
+  Failed to authenticate with supplied credentials
+  error:
+  Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.'
+[0m18:35:47.310319 [debug] [MainThread]: BigQuery adapter: Unhandled error while running:
+select 1 as id
+[0m18:35:47.311228 [debug] [MainThread]: BigQuery adapter: Database Error
+  Runtime Error
+    Failed to authenticate with supplied credentials
+    error:
+    Your default credentials were not found. To set up Application Default Credentials, see https://cloud.google.com/docs/authentication/external/set-up-adc for more information.
+[0m18:35:47.312211 [info ] [MainThread]:   Connection test: [[31mERROR[0m]
+
+[0m18:35:47.313200 [info ] [MainThread]: [31m1 check failed:[0m
+[0m18:35:47.314353 [info ] [MainThread]: dbt was unable to connect to the specified database.
+The database returned the following error:
+
+  >'NoneType' object has no attribute 'close'
+
+Check your database credentials and try again. For more information, visit:
+https://docs.getdbt.com/docs/configure-your-profile
+
+
+[0m18:35:47.315518 [info ] [MainThread]: Your new dbt project "chocolate_dbt" was created!
+Initialized new project in C:\Users\smmhk\PycharmProjects\chocolate-commerce-data-platform\chocolate_dbt\chocolate_dbt
+
+For more information on how to configure the profiles.yml file,
+please consult the dbt documentation here:
+
+  https://docs.getdbt.com/docs/configure-your-profile
+
+One more thing:
+
+Need help? Don't hesitate to reach out to us via GitHub issues or on Slack:
+
+  https://community.getdbt.com/
+
+Happy modeling!
+
+[0m18:35:47.316702 [info ] [MainThread]: [31mYour profile may need adjustments. You can find the logs of `dbt debug` above[0m
+[0m18:35:47.320703 [debug] [MainThread]: Command `dbt init` succeeded at 18:35:47.320404 after 523.82 seconds
+[0m18:35:47.321588 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x0000016031BC6780>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001604BD0F650>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001604BBAACF0>]}
+[0m18:35:47.322492 [debug] [MainThread]: Flushing usage events
+[0m18:35:48.034875 [debug] [MainThread]: An error was encountered while trying to flush usage events
