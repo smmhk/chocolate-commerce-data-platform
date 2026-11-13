@@ -1,0 +1,70 @@
+id: chocolate_ingestion_to_postgres
+namespace: chocolate
+
+description: 온라인 및 Square 데이터를 PostgreSQL에 순차 적재
+
+tasks:
+  # 온라인 데이터
+  - id: online_products
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: online_products_to_postgres
+    wait: true
+    transmitFailed: true
+
+  - id: online_customers
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: online_customers_to_postgres
+    wait: true
+    transmitFailed: true
+
+  - id: online_customer_addresses
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: online_customer_addresses_to_postgres
+    wait: true
+    transmitFailed: true
+
+  - id: online_orders
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: online_orders_to_postgres
+    wait: true
+    transmitFailed: true
+
+  - id: online_order_items
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: online_order_items_to_postgres
+    wait: true
+    transmitFailed: true
+
+  # Square 데이터
+  - id: square_customers
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: square_customers_to_postgres
+    wait: true
+    transmitFailed: true
+
+  - id: square_locations
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: square_locations_to_postgres
+    wait: true
+    transmitFailed: true
+
+  - id: square_catalog
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: square_catalog_to_postgres
+    wait: true
+    transmitFailed: true
+
+  - id: square_orders
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: square_orders_to_postgres
+    wait: true
+    transmitFailed: true

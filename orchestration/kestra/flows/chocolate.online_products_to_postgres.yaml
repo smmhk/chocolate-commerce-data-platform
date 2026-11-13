@@ -1,0 +1,26 @@
+id: online_products_to_postgres
+namespace: chocolate
+
+tasks:
+  - id: load_products
+    type: io.kestra.plugin.scripts.python.Commands
+
+    containerImage: python:3.14.0-slim
+
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      networkMode: chocolate-commerce-data-platform_default
+      volumes:
+        - "/run/desktop/mnt/host/c/Users/smmhk/PycharmProjects/chocolate-commerce-data-platform:/project:ro"
+
+    env:
+      CHOCOLATE_DB_HOST: postgres
+      PYTHONDONTWRITEBYTECODE: "1"
+      PIPELINE_ORCHESTRATOR: kestra
+      PIPELINE_RUN_ID: "{{ execution.id }}"
+
+    beforeCommands:
+      - pip install -r /project/requirements.txt
+
+    commands:
+      - cd /project && python -m src.pipelines.ingestion.online.load_tables_to_postgres --tables products

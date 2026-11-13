@@ -1,0 +1,126 @@
+id: online_products_to_file
+namespace: chocolate
+
+tasks:
+  - id: export_products
+    type: io.kestra.plugin.scripts.python.Commands
+
+    containerImage: python:3.14.0-slim
+
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      networkMode: chocolate-commerce-data-platform_default
+      volumes:
+        - "/run/desktop/mnt/host/c/Users/smmhk/PycharmProjects/chocolate-commerce-data-platform:/project:ro"
+
+    env:
+      CHOCOLATE_DB_HOST: postgres
+      PYTHONDONTWRITEBYTECODE: "1"
+      PIPELINE_ORCHESTRATOR: kestra
+      PIPELINE_RUN_ID: "{{ execution.id }}"
+
+    beforeCommands:
+      - pip install -r /project/requirements.txt
+
+    commands:
+      - >-
+        cd /project &&
+        python -m src.pipelines.export.online.export_products_to_csv
+        --output-dir "{{ workingDir }}"
+
+    outputFiles:
+      - "products_*.csv"
+
+  - id: upload_products_to_gcs
+    type: io.kestra.plugin.gcp.gcs.Upload
+
+    serviceAccount: "{{ secret('GCP_SERVICE_ACCOUNT') }}"
+
+    from: "{{ outputs.export_products.outputFiles | jq('.[]') | first }}"
+
+    to: "gs://mandy-chocolate-raw-2026/raw_online/products/{{ execution.id }}/products.csv"
+
+  - id: load_products_to_bigquery
+    type: io.kestra.plugin.gcp.bigquery.Query
+
+    projectId: chocolate-data-platform
+    location: us-east1
+    serviceAccount: "{{ secret('GCP_SERVICE_ACCOUNT') }}"
+
+    sql: |
+      LOAD DATA OVERWRITE
+        `chocolate-data-platform.raw_online.products`
+      (
+        id STRING,
+        product_id STRING,
+        sku STRING,
+        product_name STRING,
+        category STRING,
+        price NUMERIC,
+        image_key STRING,
+        description STRING,
+        is_best_seller BOOL,
+        active_status BOOL,
+        square_catalog_object_id STRING,
+        created_at TIMESTAMP,
+        updated_at TIMESTAMP,
+        square_sync_status STRING,
+        square_synced_at TIMESTAMP,
+        square_sync_error STRING,
+        ingested_at TIMESTAMP,
+        orchestrator STRING,
+        pipeline_run_id STRING
+      )
+      FROM FILES (
+        format = 'CSV',
+        uris = [
+          'gs://mandy-chocolate-raw-2026/raw_online/products/{{ execution.id }}/products.csv'
+        ],
+        skip_leading_rows = 1,
+        field_delimiter = ',',
+        quote = '"',
+        encoding = 'UTF-8',
+        null_marker = r'\N',
+        allow_quoted_newlines = TRUE,
+        allow_jagged_rows = FALSE,
+        ignore_unknown_values = FALSE,
+        max_bad_records = 0
+      );
+  
+  - id: validate_products
+    type: io.kestra.plugin.scripts.python.Commands
+
+    containerImage: python:3.14.0-slim
+
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      networkMode: chocolate-commerce-data-platform_default
+      volumes:
+        - "/run/desktop/mnt/host/c/Users/smmhk/PycharmProjects/chocolate-commerce-data-platform:/project:ro"
+
+    inputFiles:
+      gcp-key.json: "{{ secret('GCP_SERVICE_ACCOUNT') }}"
+
+    env:
+      GCS_SOURCE_URI: "gs://mandy-chocolate-raw-2026/raw_online/products/{{ execution.id }}/products.csv"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PIPELINE_ORCHESTRATOR: kestra
+      PIPELINE_RUN_ID: "{{ execution.id }}"
+
+    beforeCommands:
+      - pip install -r /project/requirements.txt
+
+    commands:
+      - |
+        set -e
+
+        # Verify the credential file exists
+        test -s "$WORKING_DIR/gcp-key.json"
+
+        # Configure Google Cloud authentication
+        export GOOGLE_APPLICATION_CREDENTIALS="$WORKING_DIR/gcp-key.json"
+
+        # Run validation
+        cd /project
+        python -m src.pipelines.validation.online.validate_products_in_bigquery \
+          --gcs-uri "$GCS_SOURCE_URI"

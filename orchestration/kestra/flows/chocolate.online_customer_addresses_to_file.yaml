@@ -1,0 +1,92 @@
+id: online_customer_addresses_to_file
+namespace: chocolate
+
+tasks:
+  - id: export_customer_addresses
+    type: io.kestra.plugin.scripts.python.Commands
+    containerImage: python:3.14.0-slim
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      networkMode: chocolate-commerce-data-platform_default
+      volumes:
+        - "/run/desktop/mnt/host/c/Users/smmhk/PycharmProjects/chocolate-commerce-data-platform:/project:ro"
+    env:
+      CHOCOLATE_DB_HOST: postgres
+      PYTHONDONTWRITEBYTECODE: "1"
+      PIPELINE_ORCHESTRATOR: kestra
+      PIPELINE_RUN_ID: "{{ execution.id }}"
+    beforeCommands:
+      - pip install -r /project/requirements.txt
+    commands:
+      - >-
+        cd /project &&
+        python -m src.pipelines.export.online.export_customer_addresses_to_csv
+        --output-dir "$WORKING_DIR"
+    outputFiles:
+      - "customer_addresses_*.csv"
+
+  - id: upload_customer_addresses_to_gcs
+    type: io.kestra.plugin.gcp.gcs.Upload
+    serviceAccount: "{{ secret('GCP_SERVICE_ACCOUNT') }}"
+    from: "{{ outputs.export_customer_addresses.outputFiles | jq('.[]') | first }}"
+    to: "gs://mandy-chocolate-raw-2026/raw_online/customer_addresses/{{ execution.id }}/customer_addresses.csv"
+
+  - id: load_customer_addresses_to_bigquery
+    type: io.kestra.plugin.gcp.bigquery.Query
+    projectId: chocolate-data-platform
+    location: us-east1
+    serviceAccount: "{{ secret('GCP_SERVICE_ACCOUNT') }}"
+    sql: |
+      LOAD DATA OVERWRITE `chocolate-data-platform.raw_online.customer_addresses`
+      (
+        id STRING,
+        customer_id STRING,
+        label STRING,
+        address_line1 STRING,
+        address_line2 STRING,
+        city STRING,
+        province STRING,
+        postal_code STRING,
+        country STRING,
+        is_default BOOLEAN,
+        created_at TIMESTAMP,
+        square_customer_id STRING,
+        ingested_at TIMESTAMP,
+        orchestrator STRING,
+        pipeline_run_id STRING
+      )
+      FROM FILES (
+        format = 'CSV',
+        uris = ['gs://mandy-chocolate-raw-2026/raw_online/customer_addresses/{{ execution.id }}/customer_addresses.csv'],
+        skip_leading_rows = 1,
+        null_marker = r'\N',
+        allow_quoted_newlines = TRUE,
+        max_bad_records = 0
+      );
+
+  - id: validate_customer_addresses
+    type: io.kestra.plugin.scripts.python.Commands
+    containerImage: python:3.14.0-slim
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      networkMode: chocolate-commerce-data-platform_default
+      volumes:
+        - "/run/desktop/mnt/host/c/Users/smmhk/PycharmProjects/chocolate-commerce-data-platform:/project:ro"
+    inputFiles:
+      gcp-key.json: "{{ secret('GCP_SERVICE_ACCOUNT') }}"
+    env:
+      GCS_SOURCE_URI: "gs://mandy-chocolate-raw-2026/raw_online/customer_addresses/{{ execution.id }}/customer_addresses.csv"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PIPELINE_ORCHESTRATOR: kestra
+      PIPELINE_RUN_ID: "{{ execution.id }}"
+    beforeCommands:
+      - pip install -r /project/requirements.txt
+    commands:
+      - |
+        set -e
+        test -s "$WORKING_DIR/gcp-key.json"
+        export GOOGLE_APPLICATION_CREDENTIALS="$WORKING_DIR/gcp-key.json"
+
+        cd /project
+        python -m src.pipelines.validation.online.validate_customer_addresses_in_bigquery \
+          --gcs-uri "$GCS_SOURCE_URI"

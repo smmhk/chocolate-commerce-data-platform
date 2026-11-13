@@ -1,0 +1,31 @@
+id: square_raw_ingestion
+namespace: chocolate
+
+tasks:
+  - id: ingest_locations
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: square_locations_to_file
+    wait: true
+    transmitFailed: true
+
+  - id: ingest_customers
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: square_customers_to_file
+    wait: true
+    transmitFailed: true
+
+  - id: ingest_catalog_objects
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: square_catalog_objects_to_file
+    wait: true
+    transmitFailed: true
+
+  - id: ingest_orders
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: square_orders_to_file
+    wait: true
+    transmitFailed: true

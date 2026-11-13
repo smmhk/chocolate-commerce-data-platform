@@ -1,0 +1,38 @@
+id: online_raw_ingestion
+namespace: chocolate
+
+tasks:
+  - id: ingest_products
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: online_products_to_file
+    wait: true
+    transmitFailed: true
+
+  - id: ingest_customers
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: online_customers_to_file
+    wait: true
+    transmitFailed: true
+
+  - id: ingest_customer_addresses
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: online_customer_addresses_to_file
+    wait: true
+    transmitFailed: true
+
+  - id: ingest_orders
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: online_orders_to_file
+    wait: true
+    transmitFailed: true
+
+  - id: ingest_order_items
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: online_order_items_to_file
+    wait: true
+    transmitFailed: true
