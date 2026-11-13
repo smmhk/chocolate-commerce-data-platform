@@ -149,6 +149,12 @@ def normalize(value, field_type, *, from_csv=False):
         if not isinstance(value, str):
             raise ValueError("Unexpected STRING representation")
         return value
+    if field_type == "INT64":
+        if from_csv and isinstance(value, str) and re.fullmatch(r"[+-]?[0-9]+", value):
+            value = int(value)
+        if type(value) is not int or not -(2**63) <= value < 2**63:
+            raise ValueError("Invalid INT64 representation")
+        return value
     if field_type == "NUMERIC":
         try:
             number = Decimal(value)
@@ -259,7 +265,7 @@ def validate_snapshot(
 
         with log_stage(logger, "check_schema"):
             metadata = bq.get_table(table, timeout=60)
-            aliases = {"BOOL": "BOOLEAN", "DECIMAL": "NUMERIC"}
+            aliases = {"BOOL": "BOOLEAN", "DECIMAL": "NUMERIC", "INTEGER": "INT64"}
             actual_schema = tuple(
                 (field.name, aliases.get(field.field_type, field.field_type))
                 for field in metadata.schema
