@@ -504,7 +504,7 @@ Square에 고객이 존재하는 것과,
 ### 이번에 진행한 작업
 
 상품과 고객 다음으로 Lovable의 매장 데이터를 Square Location 생성 요청으로 변환했다.
-`tests/test_locations.py`에서 payload를 확인하고, `src/square/location.py`의 `create_location()`을 호출하는 흐름으로 테스트했다.
+`scripts/manual/square/create_locations.py`에서 payload를 확인하고, `src/clients/square/locations.py`의 `create_location()`을 호출하는 흐름으로 테스트했다.
 
 매장 생성 중 HTTP 400 `BAD_REQUEST`를 확인했고, 필수 주소 값과 우편번호를 점검했다.
 
@@ -584,22 +584,22 @@ Square API의 전체 필수 항목 목록을 의미하지 않는다.
 
 | 경로 | 역할 |
 |---|---|
-| `src/extract/load_csv.py` | CSV 읽기 |
-| `src/extract/online/load_online_data.py` | 온라인 원본 CSV 5개 읽기 |
-| `src/transform/online/filter_online_data.py` | 온라인 고객·주문 및 관련 데이터 선별, 상품은 전체 사용 |
-| `src/pipelines/online_to_postgres.py` | 적재 대상 선택, 실행 메타데이터 생성, 온라인 DB 적재 흐름 관리 |
+| `src/extract/csv_reader.py` | CSV 읽기 |
+| `src/extract/online/read_source_tables.py` | 온라인 원본 CSV 5개 읽기 |
+| `src/transform/online/select_channel_records.py` | 온라인 고객·주문 및 관련 데이터 선별, 상품은 전체 사용 |
+| `src/pipelines/ingestion/online/load_tables_to_postgres.py` | 적재 대상 선택, 실행 메타데이터 생성, 온라인 DB 적재 흐름 관리 |
 | `src/load/postgres/connection.py` | 환경 변수 기반 SQLAlchemy DB 연결 |
-| `src/load/postgres/load_table.py` | `raw_online` 테이블별 전체 갱신 |
+| `src/load/postgres/online/replace_table.py` | `raw_online` 테이블별 전체 갱신 |
 | `sql/migrations/001_add_ingestion_metadata.sql` | 온라인 raw 테이블의 적재 메타데이터 컬럼 추가 변경 |
-| `src/transform/products.py` | 상품 요청 데이터 변환 |
-| `src/square/catalog.py` | 상품 검색·생성·삭제 및 결과 저장 |
-| `src/transform/customers.py` | 고객 요청 데이터 변환 |
-| `src/square/customers.py` | 고객 API 함수와 고객·주소 CSV 연결 정보 저장 |
-| `tests/test_customers.py` | 고객 한 명의 생성·결과 저장 확인 |
+| `src/transform/square/products_payload.py` | 상품 요청 데이터 변환 |
+| `src/clients/square/catalog.py` | 상품 검색·생성·삭제 및 결과 저장 |
+| `src/transform/square/customers_payload.py` | 고객 요청 데이터 변환 |
+| `src/clients/square/customers.py` | 고객 API 함수와 고객·주소 CSV 연결 정보 저장 |
+| `scripts/manual/square/create_customers.py` | 고객 한 명의 생성·결과 저장 확인 |
 | `tests/test_customer_address.py` | 고객과 기본 주소 연결 확인 |
-| `src/square/location.py` | 매장 생성 API 함수 |
-| `tests/test_locations.py` | 매장 payload 확인과 생성 테스트 |
-| `src/pipelines/customers_pipeline.py` | 전체 POS 고객 처리 흐름으로 확장할 위치 |
+| `src/clients/square/locations.py` | 매장 생성 API 함수 |
+| `scripts/manual/square/create_locations.py` | 매장 payload 확인과 생성 테스트 |
+| `src/pipelines/source_to_square/sync_customers.py` | 전체 POS 고객 처리 흐름으로 확장할 위치 |
 
 고객 삭제 함수가 존재하더라도,
 두 CSV 저장 실패 시 자동 삭제하는 흐름에서는 사용하지 않는다.

@@ -431,7 +431,7 @@ df.to_sql(
 
 **현재 코드는 `DELETE + APPEND` 방식이다. 기존 문서의 `TRUNCATE + APPEND` 설명을 실제 코드에 맞게 수정했다.**
 
-파일: `src/load/postgres/load_table.py`
+파일: `src/load/postgres/online/replace_table.py`
 
 ```python
 import pandas as pd
@@ -571,12 +571,12 @@ WHERE o.order_id IS NULL;
 
 | 파일 | 역할 |
 |---|---|
-| `src/extract/load_csv.py` | 기존 공통 CSV 읽기 함수 |
-| `src/extract/online/load_online_data.py` | CSV 5개를 읽어 딕셔너리로 반환 |
-| `src/transform/online/filter_online_data.py` | 온라인 데이터와 관련 행 선별 |
+| `src/extract/csv_reader.py` | 기존 공통 CSV 읽기 함수 |
+| `src/extract/online/read_source_tables.py` | CSV 5개를 읽어 딕셔너리로 반환 |
+| `src/transform/online/select_channel_records.py` | 온라인 데이터와 관련 행 선별 |
 | `src/load/postgres/connection.py` | SQLAlchemy Engine 생성 |
-| `src/load/postgres/load_table.py` | raw_online 테이블 데이터 교체 |
-| `src/pipelines/online_to_postgres.py` | Extract → Transform → Load 실행 |
+| `src/load/postgres/online/replace_table.py` | raw_online 테이블 데이터 교체 |
+| `src/pipelines/ingestion/online/load_tables_to_postgres.py` | Extract → Transform → Load 실행 |
 
 ```mermaid
 flowchart TD
@@ -603,7 +603,7 @@ online_data["orders"]  # 선별한 온라인 주문
 새 읽기 파일은 폴더 한 단계 아래에 있으므로 프로젝트 루트 경로는 다음처럼 계산한다.
 
 ```python
-# src/extract/online/load_online_data.py
+# src/extract/online/read_source_tables.py
 BASE_DIR = Path(__file__).resolve().parents[3]
 ```
 
@@ -612,10 +612,10 @@ BASE_DIR = Path(__file__).resolve().parents[3]
 ### 현재 파이프라인
 
 ```python
-from src.extract.online.load_online_data import load_online_data
-from src.transform.online.filter_online_data import filter_online_data
+from src.extract.online.read_source_tables import load_online_data
+from src.transform.online.select_channel_records import filter_online_data
 from src.load.postgres.connection import get_postgres_engine
-from src.load.postgres.load_table import load_dataframe_to_postgres
+from src.load.postgres.online.replace_table import load_dataframe_to_postgres
 
 
 LOAD_ORDER = (
@@ -664,7 +664,7 @@ if __name__ == "__main__":
 Docker와 PostgreSQL 컨테이너가 실행 중이고, 테이블이 준비된 상태에서 가상환경을 활성화한다. 프로젝트 루트에서 실행한다.
 
 ```powershell
-python -m src.pipelines.online_to_postgres
+python -m src.pipelines.ingestion.online.load_tables_to_postgres
 ```
 
 ### 공유된 실행 로그
@@ -769,7 +769,7 @@ PostgreSQL은 Local Data Engineering 환경이다.
 | 주요 함수 | create_product / create_customer / create_order | list_catalog_items / list_customers / search_orders |
 | 목적 | 테스트용 원천 시스템 구성 | 분석 플랫폼에 원천 데이터 수집 |
 
-`src/square/client.py`는 `.env`에서 `SQUARE_ACCESS_TOKEN`을 읽고 공통 headers를 만든다. 이 프로젝트에서 사용 중인 `Square-Version` 값은 `2026-08-19`다. 토큰 자체는 문서와 Git에 기록하지 않는다.
+`src/clients/square/config.py`는 `.env`에서 `SQUARE_ACCESS_TOKEN`을 읽고 공통 headers를 만든다. 이 프로젝트에서 사용 중인 `Square-Version` 값은 `2026-08-19`다. 토큰 자체는 문서와 Git에 기록하지 않는다.
 
 상품·고객·주문·매장 파일은 공통 headers를 가져와 `requests`로 Sandbox API를 호출한다. 공통 설정을 import하는 것만으로 API가 호출되는 것은 아니다.
 
@@ -780,7 +780,7 @@ PostgreSQL은 Local Data Engineering 환경이다.
 | 주문 | POST /v2/orders/search | search_orders(location_ids) | orders |
 | 매장 | GET /v2/locations | list_locations() | locations |
 
-현재 함수 위치는 각각 `src/square/catalog.py`, `customers.py`, `orders.py`, **`location.py`**다. 매장 파일명은 `locations.py`가 아니다.
+현재 함수 위치는 각각 `src/clients/square/catalog.py`, `customers.py`, `orders.py`, **`location.py`**다. 매장 파일명은 `locations.py`가 아니다.
 
 ## 페이지네이션과 오류 처리
 
@@ -802,9 +802,9 @@ PostgreSQL은 Local Data Engineering 환경이다.
 처음부터 테이블 컬럼을 추측하지 않고 조회 전용 파일에서 응답을 확인했다.
 
 ```powershell
-python -m src.pipelines.inspect_square_catalog
-python -m src.pipelines.inspect_square_customers
-python -m src.pipelines.inspect_square_orders
+python -m scripts.inspect.square.inspect_catalog
+python -m scripts.inspect.square.inspect_customers
+python -m scripts.inspect.square.inspect_orders
 ```
 
 이 파일들은 첫 객체의 JSON과 전체 요약을 출력한다. PostgreSQL 적재는 별도의 `*_to_postgres.py`가 담당한다.
@@ -901,10 +901,10 @@ CREATE TABLE IF NOT EXISTS raw_square.locations (
 
 | 파일 | 적재 함수 | 테이블 |
 |---|---|---|
-| src/load/postgres/load_square_catalog.py | load_square_catalog(items, engine) | raw_square.catalog_objects |
-| src/load/postgres/load_square_customers.py | load_square_customers(customers, engine) | raw_square.customers |
-| src/load/postgres/load_square_orders.py | load_square_orders(orders, engine) | raw_square.orders |
-| src/load/postgres/load_square_locations.py | load_square_locations(locations, engine) | raw_square.locations |
+| src/load/postgres/square/upsert_catalog_objects.py | load_square_catalog(items, engine) | raw_square.catalog_objects |
+| src/load/postgres/square/upsert_customers.py | load_square_customers(customers, engine) | raw_square.customers |
+| src/load/postgres/square/upsert_orders.py | load_square_orders(orders, engine) | raw_square.orders |
+| src/load/postgres/square/upsert_locations.py | load_square_locations(locations, engine) | raw_square.locations |
 
 네 함수는 JSON 객체를 `json.dumps(..., ensure_ascii=False)`로 직렬화하고, SQLAlchemy의 바인딩 파라미터로 SQL에 전달한다. PostgreSQL에서는 `CAST(:payload AS JSONB)`로 변환한다.
 
@@ -984,14 +984,14 @@ def load_square_customers(customers: list[dict], engine: Engine) -> None:
 
 # 22. ▶️ 실행 파이프라인
 
-파이프라인은 조회 함수와 적재 함수를 연결한다. API 통신은 `src/square/`, DB 저장은 `src/load/postgres/`, 실행 순서는 `src/pipelines/`가 담당한다.
+파이프라인은 조회 함수와 적재 함수를 연결한다. API 통신은 `src/clients/square/`, DB 저장은 `src/load/postgres/`, 실행 순서는 `src/pipelines/`가 담당한다.
 
 대표 매장 파이프라인:
 
 ```python
-from src.square.location import list_locations
+from src.clients.square.locations import list_locations
 from src.load.postgres.connection import get_postgres_engine
-from src.load.postgres.load_square_locations import load_square_locations
+from src.load.postgres.square.upsert_locations import load_square_locations
 
 
 def run():
@@ -1019,10 +1019,10 @@ if __name__ == "__main__":
 프로젝트 루트에서 가상환경을 활성화하고 PostgreSQL 컨테이너가 실행 중인 상태로 실행한다.
 
 ```powershell
-python -m src.pipelines.square_catalog_to_postgres
-python -m src.pipelines.square_customers_to_postgres
-python -m src.pipelines.square_orders_to_postgres
-python -m src.pipelines.square_locations_to_postgres
+python -m src.pipelines.ingestion.square.load_catalog_objects_to_postgres
+python -m src.pipelines.ingestion.square.load_customers_to_postgres
+python -m src.pipelines.ingestion.square.load_orders_to_postgres
+python -m src.pipelines.ingestion.square.load_locations_to_postgres
 ```
 
 이 명령은 각 파이프라인을 실행하는 방법이다. 매장 파이프라인은 이번 대화에서 코드만 전달했으며 실제 실행 성공은 아직 확인되지 않았다.

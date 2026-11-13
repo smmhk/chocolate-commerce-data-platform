@@ -270,11 +270,11 @@ address.postal_code is required
 | `order_items` | 92 | 37 | 선별 주문과 연결된 상품 |
 
 - `Extract` / `Transform` / `Load` 역할을 파일별로 분리:
-  - `src/extract/online/load_online_data.py`
-  - `src/transform/online/filter_online_data.py`
+  - `src/extract/online/read_source_tables.py`
+  - `src/transform/online/select_channel_records.py`
   - `src/load/postgres/connection.py`
-  - `src/load/postgres/load_table.py`
-  - `src/pipelines/online_to_postgres.py`
+  - `src/load/postgres/online/replace_table.py`
+  - `src/pipelines/ingestion/online/load_tables_to_postgres.py`
 - SQL Schema와 Validation SQL 작성.
 - 원본 필터 조건과 엔티티 연결 관계 검토.
 

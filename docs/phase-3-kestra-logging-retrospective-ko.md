@@ -22,11 +22,11 @@ Logging Patch의 적용 대상은 다음 **Python 진입점 5개**다. `online_t
 
 | Python 파이프라인 | 담당 데이터 |
 |---|---|
-| `src/pipelines/online_to_postgres.py` | 온라인 데이터 → PostgreSQL |
-| `src/pipelines/square_catalog_to_postgres.py` | Square 상품 카탈로그 → PostgreSQL |
-| `src/pipelines/square_customers_to_postgres.py` | Square 고객 → PostgreSQL |
-| `src/pipelines/square_locations_to_postgres.py` | Square 매장 → PostgreSQL |
-| `src/pipelines/square_orders_to_postgres.py` | Square 주문 → PostgreSQL |
+| `src/pipelines/ingestion/online/load_tables_to_postgres.py` | 온라인 데이터 → PostgreSQL |
+| `src/pipelines/ingestion/square/load_catalog_objects_to_postgres.py` | Square 상품 카탈로그 → PostgreSQL |
+| `src/pipelines/ingestion/square/load_customers_to_postgres.py` | Square 고객 → PostgreSQL |
+| `src/pipelines/ingestion/square/load_locations_to_postgres.py` | Square 매장 → PostgreSQL |
+| `src/pipelines/ingestion/square/load_orders_to_postgres.py` | Square 주문 → PostgreSQL |
 
 이전 Phase 3 작업에서는 **상위 Flow(Parent Flow)**가 Online 5개와 Square 4개의 개별 Flow를 호출하도록 구성하고, 전체 9개 적재 작업의 순차 실행을 확인한 기록이 있다. 이번 Logging Patch 적용 **이후** 상위 Flow 전체를 다시 실행한 결과는 아직 공유되지 않았다.
 
@@ -152,7 +152,7 @@ Kestra ──> Python 파이프라인 ──> 공통 Logging 사용 ──> Kest
 ### 6.2 Square Catalog 실행 증거
 
 **실행일:** 2026-11-06 (아래 로그 시각은 UTC)  
-**Kestra 작업:** Square Catalog → PostgreSQL (`python -m src.pipelines.square_catalog_to_postgres`)  
+**Kestra 작업:** Square Catalog → PostgreSQL (`python -m src.pipelines.ingestion.square.load_catalog_objects_to_postgres`)
 **Task Runner:** Docker  
 **실행 식별자:** `4WfkXOhKPINBTWmATTiSbx` (해당 실행에서 기록한 `pipeline_run_id`)
 
@@ -173,14 +173,14 @@ Kestra ──> Python 파이프라인 ──> 공통 Logging 사용 ──> Kest
 로그 일부(실제 출력에서 핵심만 발췌):
 
 ```text
-2026-11-06 23:20:05,156 INFO src.pipelines.square_catalog_to_postgres status=started orchestrator=kestra pipeline_run_id=4WfkXOhKPINBTWmATTiSbx
-2026-11-06 23:20:05,156 INFO src.pipelines.square_catalog_to_postgres stage=extract status=started source=square resource=catalog
+2026-11-06 23:20:05,156 INFO src.pipelines.ingestion.square.load_catalog_objects_to_postgres status=started orchestrator=kestra pipeline_run_id=4WfkXOhKPINBTWmATTiSbx
+2026-11-06 23:20:05,156 INFO src.pipelines.ingestion.square.load_catalog_objects_to_postgres stage=extract status=started source=square resource=catalog
 [EXTRACT] total items: 15
-2026-11-06 23:20:05,511 INFO src.pipelines.square_catalog_to_postgres stage=extract status=completed source=square resource=catalog elapsed_seconds=0.355
-2026-11-06 23:20:05,620 INFO src.pipelines.square_catalog_to_postgres stage=connect status=completed elapsed_seconds=0.108
+2026-11-06 23:20:05,511 INFO src.pipelines.ingestion.square.load_catalog_objects_to_postgres stage=extract status=completed source=square resource=catalog elapsed_seconds=0.355
+2026-11-06 23:20:05,620 INFO src.pipelines.ingestion.square.load_catalog_objects_to_postgres stage=connect status=completed elapsed_seconds=0.108
 [SUCCESS] raw_square.catalog_objects upsert completed (15 items)
-2026-11-06 23:20:05,697 INFO src.pipelines.square_catalog_to_postgres stage=load status=completed table=raw_square.catalog_objects elapsed_seconds=0.076
-2026-11-06 23:20:05,698 INFO src.pipelines.square_catalog_to_postgres status=completed pipeline_run_id=4WfkXOhKPINBTWmATTiSbx elapsed_seconds=0.541
+2026-11-06 23:20:05,697 INFO src.pipelines.ingestion.square.load_catalog_objects_to_postgres stage=load status=completed table=raw_square.catalog_objects elapsed_seconds=0.076
+2026-11-06 23:20:05,698 INFO src.pipelines.ingestion.square.load_catalog_objects_to_postgres status=completed pipeline_run_id=4WfkXOhKPINBTWmATTiSbx elapsed_seconds=0.541
 Command succeed with exit code 0
 ```
 

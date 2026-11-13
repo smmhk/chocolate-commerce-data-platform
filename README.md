@@ -82,7 +82,7 @@ Inventory monitoring and demand forecasting are future extensions.
 
 **Current focus:** Parameterize the Kestra workflow, verify all online tables, then extend orchestration to Square ingestion and add scheduling where appropriate.
 
-Detailed progress and validation boundaries are recorded in [PROJECT_PROGRESS_KO.md](PROJECT_PROGRESS_KO.md) and [Phase 3 notes](docs/phase-3-kestra-orchestration-ko.md).
+Detailed progress and validation boundaries are recorded in [PROJECT_PROGRESS_KO.md](docs/PROJECT_PROGRESS_KO.md) and [Phase 3 notes](docs/phase-3-kestra-orchestration-ko.md).
 
 ---
 
@@ -314,10 +314,10 @@ From the project root, with Python dependencies installed, CSV inputs available,
 pip install -r requirements.txt
 
 # All supported online tables
-python -m src.pipelines.online_to_postgres
+python -m src.pipelines.ingestion.online.load_tables_to_postgres
 
 # Products only
-python -m src.pipelines.online_to_postgres --tables products
+python -m src.pipelines.ingestion.online.load_tables_to_postgres --tables products
 ```
 
 `--tables` selects the tables to **load**. The current implementation still reads and filters all five source CSV files, so all five inputs are required even for a product-only run. Running these commands replaces the selected tables' current rows with the CSV-derived data.
@@ -337,7 +337,7 @@ The existing Python module runs in a temporary Docker task container managed by 
 5. Confirm logs and inspect the database's ingestion metadata.
 
 ```bash
-python -m src.pipelines.online_to_postgres --tables products
+python -m src.pipelines.ingestion.online.load_tables_to_postgres --tables products
 ```
 
 ```text
@@ -551,41 +551,55 @@ Inventory analytics will be added once stock ingestion and modeling are implemen
 
 ## 📁 Repository Structure
 
-Selected implemented paths are shown below; this is not a complete repository inventory. Cloud and dbt components will be added as they are implemented.
+Code is grouped by responsibility and data direction. See [the structure and migration guide](docs/REPOSITORY_STRUCTURE_KO.md) for file mappings and Kestra command updates.
 
 ```text
 chocolate-commerce-data-platform/
-├── data/
-│   ├── raw/
-│   └── processed/
 ├── src/
-│   ├── config/
-│   ├── extract/
-│   │   └── online/load_online_data.py
+│   ├── clients/square/           # Square API 통신과 인증 설정
+│   ├── common/logging.py        # 공통 로그와 실행 메타데이터
+│   ├── config/paths.py          # 프로젝트 기준 경로
+│   ├── extract/                 # CSV 읽기
+│   │   ├── csv_reader.py
+│   │   └── online/read_source_tables.py
 │   ├── transform/
-│   │   └── online/filter_online_data.py
-│   ├── square/
+│   │   ├── online/select_channel_records.py
+│   │   └── square/*_payload.py  # Square 요청 데이터 변환
 │   ├── load/postgres/
 │   │   ├── connection.py
-│   │   └── load_table.py
-│   └── pipelines/
-│       └── online_to_postgres.py
+│   │   ├── online/replace_table.py
+│   │   └── square/upsert_*.py
+│   ├── snapshots/               # CSV 추출·BigQuery 비교 공통 구현
+│   │   ├── online.py
+│   │   └── square.py
+│   └── pipelines/              # 실행 진입점
+│       ├── source_to_square/   # CSV → Square 시뮬레이션 데이터 준비
+│       ├── ingestion/          # 원천 → PostgreSQL
+│       │   ├── online/
+│       │   └── square/
+│       ├── export/             # PostgreSQL → CSV
+│       │   ├── online/
+│       │   └── square/
+│       └── validation/         # GCS CSV ↔ BigQuery 검증
+│           ├── online/
+│           └── square/
+├── scripts/
+│   ├── inspect/square/         # API 응답 조사
+│   └── manual/square/          # 실제 API·CSV 변경이 있는 수동 연동 확인
+├── tests/                      # 외부 서비스 없이 실행하는 자동 검사
+├── data/sample/
 ├── sql/
-│   ├── schema/create_raw_online_tables.sql
-│   ├── migrations/001_add_ingestion_metadata.sql
-│   └── validation/validate_online_ingestion.sql
+├── chocolate_dbt/
 ├── docs/
-│   └── phase-3-kestra-orchestration-ko.md
 ├── docker-compose.yml
-├── requirements.txt
-└── README.md
+└── requirements.txt
 ```
 
 Planned additions:
 
 | Directory | Purpose |
 |---|---|
-| `dbt/` | Staging, intermediate models, marts, and data tests |
+| `chocolate_dbt/` | Existing first staging model; intermediate models, marts, and data tests to extend |
 | `orchestration/kestra/` | Repository-managed workflow YAML |
 | `dashboards/` | Power BI assets and screenshots |
 
@@ -628,7 +642,7 @@ This project is being developed alongside my Data Engineering studies. Each stag
 | Kestra | Run and monitor existing Python ingestion; scheduling is next |
 | Power BI | Compare retail and online business performance |
 
-Implementation decisions and learning progress are documented in `LEARNING_NOTES.md` and `LEARNING_NOTES_en.md`.
+Implementation decisions and learning progress are documented in the `docs/study/` learning notes.
 
 ---
 

@@ -381,14 +381,14 @@ Learning Notes에는 전체 코드 대신 **무엇을 했고 왜 그렇게 했�
 
 | 역할 | 소스 코드 |
 |---|---|
-| CSV 읽기 | [load_csv.py](./src/extract/load_csv.py) |
-| 상품 변환 | [products.py](./src/transform/products.py) |
-| 상품 API 연동 | [catalog.py](./src/square/catalog.py) |
-| 고객 API 연동 | [customers.py](./src/square/customers.py) |
-| 매장 API 연동 | [location.py](./src/square/location.py) |
-| 주문 변환 | [orders.py](./src/transform/orders.py) |
-| 주문 API 연동 | [orders.py](./src/square/orders.py) |
-| 주문 단건 테스트 | [test_orders.py](./tests/test_orders.py) |
+| CSV 읽기 | [load_csv.py](./src/extract/csv_reader.py) |
+| 상품 변환 | [products.py](./src/transform/square/products_payload.py) |
+| 상품 API 연동 | [catalog.py](./src/clients/square/catalog.py) |
+| 고객 API 연동 | [customers.py](./src/clients/square/customers.py) |
+| 매장 API 연동 | [location.py](./src/clients/square/locations.py) |
+| 주문 변환 | [orders.py](./src/transform/square/orders_payload.py) |
+| 주문 API 연동 | [orders.py](./src/clients/square/orders.py) |
+| 주문 단건 테스트 | [test_orders.py](./scripts/manual/square/create_orders.py) |
 | 주문 일괄 처리 | [order_pipeline.py](./src/pipelines/order_pipeline.py) |
 
 CSV 읽기, 데이터 변환, API 호출을 역할별로 나누고, pipeline에서 전체 흐름을 실행하도록 구성했습니다.

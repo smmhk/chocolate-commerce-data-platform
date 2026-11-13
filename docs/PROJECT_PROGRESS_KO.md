@@ -149,12 +149,12 @@ Python과 DBeaver는 각각 PostgreSQL에 접속합니다. DBeaver는 데이터 
 
 | 파일 | 역할 |
 |---|---|
-| `src/extract/load_csv.py` | 기존 공통 CSV 읽기 |
-| `src/extract/online/load_online_data.py` | 원본 CSV 5개 읽기 |
-| `src/transform/online/filter_online_data.py` | 온라인 데이터 및 관련 행 선별 |
+| `src/extract/csv_reader.py` | 기존 공통 CSV 읽기 |
+| `src/extract/online/read_source_tables.py` | 원본 CSV 5개 읽기 |
+| `src/transform/online/select_channel_records.py` | 온라인 데이터 및 관련 행 선별 |
 | `src/load/postgres/connection.py` | PostgreSQL 연결 엔진 생성 |
-| `src/load/postgres/load_table.py` | 테이블 데이터 교체·저장 |
-| `src/pipelines/online_to_postgres.py` | 전체 실행 순서 관리 |
+| `src/load/postgres/online/replace_table.py` | 테이블 데이터 교체·저장 |
+| `src/pipelines/ingestion/online/load_tables_to_postgres.py` | 전체 실행 순서 관리 |
 
 - 새 `online` 폴더 두 곳에 빈 `__init__.py` 추가
 - 읽기 파일의 위치 변경에 맞춰 프로젝트 루트 경로를 `parents[3]`으로 조정
@@ -201,7 +201,7 @@ online_data = filter_online_data(source_data)
 ## 📊 공유된 실행 결과
 
 ```powershell
-python -m src.pipelines.online_to_postgres
+python -m src.pipelines.ingestion.online.load_tables_to_postgres
 ```
 
 리팩토링한 파이프라인에서 `[START]`부터 `[DONE]`까지 오류 없이 실행되는 로그를 확인했습니다.
@@ -316,14 +316,14 @@ flowchart TD
 | Square Catalog 조회 | Square 상품 응답 구조 확인 |
 | 온라인 CSV → `raw_online` | 이번 Kestra 적재 실습 경로 |
 
-상품 전용 Python 파일을 추가하는 대신 기존 `src/pipelines/online_to_postgres.py`에 `argparse` 기반 `--tables` 옵션을 추가했습니다.
+상품 전용 Python 파일을 추가하는 대신 기존 `src/pipelines/ingestion/online/load_tables_to_postgres.py`에 `argparse` 기반 `--tables` 옵션을 추가했습니다.
 
 ```bash
 # 전체 온라인 테이블
-python -m src.pipelines.online_to_postgres
+python -m src.pipelines.ingestion.online.load_tables_to_postgres
 
 # 상품만 선택
-python -m src.pipelines.online_to_postgres --tables products
+python -m src.pipelines.ingestion.online.load_tables_to_postgres --tables products
 ```
 
 현재 `load_online_data()`와 `filter_online_data()`는 기존대로 CSV 5개를 읽고 선별합니다. **선택 옵션은 DB 적재 범위만 제한**하므로 상품만 선택해도 다른 데이터의 EXTRACT·TRANSFORM 로그가 나오는 것이 정상입니다. 적재 순서는 기존 `LOAD_ORDER`를 유지합니다.
@@ -415,7 +415,7 @@ taskRunner:
 - task: `io.kestra.plugin.scripts.python.Commands`
 - namespace: `chocolate`
 - 준비 명령: `pip install -r /project/requirements.txt`
-- 실행 명령: `cd /project && python -m src.pipelines.online_to_postgres --tables products`
+- 실행 명령: `cd /project && python -m src.pipelines.ingestion.online.load_tables_to_postgres --tables products`
 
 2026-10-30 첫 적재 성공 로그의 핵심 결과:
 
@@ -495,7 +495,7 @@ GROUP BY orchestrator, pipeline_run_id, ingested_at;
 | `docker-compose.yml` | Kestra Docker runner 볼륨 허용 설정 |
 | `requirements.txt` | 컨테이너 패키지 설치 목록 |
 | `src/load/postgres/connection.py` | 환경 변수 기반 DB 연결 |
-| `src/pipelines/online_to_postgres.py` | 테이블 선택 옵션과 실행 메타데이터 |
+| `src/pipelines/ingestion/online/load_tables_to_postgres.py` | 테이블 선택 옵션과 실행 메타데이터 |
 | `sql/migrations/001_add_ingestion_metadata.sql` | 적재 메타데이터 컬럼 추가 |
 | `docs/phase-3-kestra-orchestration-ko.md` | Phase 3 상세 과정과 현재 workflow 설정 |
 | Entity Mapping 문서 | 원천·Square 매핑과 분석용 적재 메타데이터 구분 |

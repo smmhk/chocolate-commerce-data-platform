@@ -36,7 +36,7 @@ Charlie’s Chocolate Factory — Omnichannel Retail Data Platform
 | Online / Square → PostgreSQL 적재 | ✅ 이전 단계 완료 | Online 5개, Square 4개 raw 테이블 보유 |
 | Kestra 개별 Flow 및 상위 Flow | ✅ 이전 단계 완료 | 9개 원본 적재 작업의 Kestra 실행 기록 |
 | 공통 Python Logging | ✅ Products 검증 코드에서 동작 확인 / 🟡 전체 파이프라인 반영 범위는 추가 확인 | `run_logging.py` 호출, 단계별 로그와 실행 ID 확인. 과거 Patch가 다른 파이프라인에 모두 반영됐는지는 확인되지 않음 |
-| PostgreSQL → CSV export | ✅ **Products 완료** | `src.pipelines.postgres_to_file` 실행 |
+| PostgreSQL → CSV export | ✅ **Products 완료** | `src.pipelines.export.online.export_products_to_csv` 실행 |
 | GCS 파일 업로드 | ✅ **Products 완료** | Kestra GCS Upload 태스크 성공 |
 | BigQuery raw 적재 | ✅ **Products 완료** | `chocolate-data-platform.raw_online.products`에 15행 |
 | Python 적재 검증 | ✅ **Products 완료** | CSV 15행 ↔ BigQuery 15행, 19개 컬럼, 불일치 0, `validation=passed` |
@@ -216,10 +216,10 @@ Kestra Flow: `chocolate.online_products_to_file`
 
 | Kestra Task | 타입 / 역할 | 확인 상태 |
 |---|---|---|
-| `export_products` | Python `src.pipelines.postgres_to_file`로 PostgreSQL 테이블을 CSV export, `outputFiles` 수집 | ✅ 성공 |
+| `export_products` | Python `src.pipelines.export.online.export_products_to_csv`로 PostgreSQL 테이블을 CSV export, `outputFiles` 수집 | ✅ 성공 |
 | `upload_products_to_gcs` | Kestra `io.kestra.plugin.gcp.gcs.Upload`로 CSV 업로드 | ✅ 성공 |
 | `load_products_to_bigquery` | Kestra BigQuery Query의 `LOAD DATA OVERWRITE`로 native raw 테이블 로드 | ✅ 성공 |
-| `validate_products` | Python `src.pipelines.validate_products_load`에서 GCS CSV와 BigQuery 전체 스냅샷 비교 | ✅ 성공 |
+| `validate_products` | Python `src.pipelines.validation.online.validate_products_in_bigquery`에서 GCS CSV와 BigQuery 전체 스냅샷 비교 | ✅ 성공 |
 
 **리소스 / 경로**
 
@@ -286,7 +286,7 @@ Command succeed with exit code 0
 ### 8.0 Phase 3 보완 — Kestra Logging
 
 - [x] `print()` 중심 실행 기록의 한계 파악 및 공통 Logging 구조 설계
-- [x] 개선 Patch 준비 및 `src/pipelines/run_logging.py` 공통 함수 설계
+- [x] 개선 Patch 준비 및 `src/common/logging.py` 공통 함수 설계
 - [x] Products 검증 스크립트에서 `log_stage()`, `run_metadata()`, `run_cli()` 사용 확인
 - [x] Kestra UI에서 `read_source`, `check_schema`, `read_target`, `compare`, `validation=passed` 단계 로그 확인
 - [ ] 기존 Online/Square Python 파이프라인 모두에 Logging 변경이 적용됐는지 Git diff/코드 기준으로 확인
@@ -385,7 +385,7 @@ dbt가 **BigQuery에 SQL을 실행**하고 결과 View/Table을 **BigQuery 안�
 
 | 항목 | 현재 결정 / 다음에 결정할 내용 |
 |---|---|
-| Products export 코드 | `src.pipelines.postgres_to_file` 구현 완료. 나머지 테이블로 범용화할지 결정 |
+| Products export 코드 | `src.pipelines.export.online.export_products_to_csv` 구현 완료. 나머지 테이블로 범용화할지 결정 |
 | 파일 형식 | Products, Locations, Customers는 CSV로 검증 완료. Catalog와 Orders에서 JSON payload 크기·내용을 확인한다. |
 | GCS 경로 | Products: `raw_online/products/{{ execution.id }}/products.csv`. 다른 테이블에도 규칙 확장 |
 | BigQuery 스키마 | Products 19개 컬럼 검증 완료. Locations·Customers의 payload는 STRING. Catalog는 기본키와 object_type을 포함해 정의한다. |
@@ -434,9 +434,9 @@ dbt가 **BigQuery에 SQL을 실행**하고 결과 View/Table을 **BigQuery 안�
 
 - Kestra Flow: `chocolate.online_products_to_file`
 - `export_products` → `upload_products_to_gcs` → `load_products_to_bigquery` → `validate_products`
-- Python export: `src.pipelines.postgres_to_file`
-- Python 검증: `src.pipelines.validate_products_load`
-- 공통 실행/단계 로그: `src.pipelines.run_logging`
+- Python export: `src.pipelines.export.online.export_products_to_csv`
+- Python 검증: `src.pipelines.validation.online.validate_products_in_bigquery`
+- 공통 실행/단계 로그: `src.common.logging`
 - BigQuery: `chocolate-data-platform.raw_online.products` (19개 컬럼)
 - GCS 파일 경로: `gs://mandy-chocolate-raw-2026/raw_online/products/{{ execution.id }}/products.csv`
 
@@ -538,7 +538,7 @@ Kestra로 여러 개의 Flow를 관리하면서 **실행 성공 여부만으로�
 #### 정한 개선 방식
 
 1. **Patch 일괄 적용:** 개선된 `kestra-pipeline-logging-improved.patch`로 기존 Python 5개 파이프라인에 공통 Logging 구조를 일괄 반영한다.
-2. **공통 모듈 재사용:** `src/pipelines/run_logging.py`의 `log_stage()`, `run_metadata()`, `run_cli()` 기능을 공통으로 사용한다.
+2. **공통 모듈 재사용:** `src/common/logging.py`의 `log_stage()`, `run_metadata()`, `run_cli()` 기능을 공통으로 사용한다.
 3. **업무 로그는 개별 코드에서:** Extract / Transform / Load 단계의 건수 및 상태는 각 파이프라인에서 기록한다.
 4. **Kestra UI 검증:** stdout 로그, 오류 위치·종류, 실패 종료 코드, 데이터 건수 검증을 수행한다.
 5. **Git 관리:** Patch 적용 후에는 `.py` 파일이 실제 변경되므로 그 변경을 검토하고 Git에 커밋한다. Patch를 장기 Logging 저장소로 사용하지 않는다.

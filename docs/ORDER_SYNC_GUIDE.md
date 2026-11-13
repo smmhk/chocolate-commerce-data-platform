@@ -241,11 +241,11 @@ variation_ids_by_sku = {
 
 | 파일 | 담당하는 일 | 외부 API 호출 |
 |---|---|---|
-| tests/test_orders.py | 읽기·선택·ID 전달·함수 실행·검증·파일 저장 | create_order()를 호출 |
-| src/transform/orders.py | 원본 데이터 검증과 요청 딕셔너리 생성 | 없음 |
-| src/square/orders.py | HTTP 요청 전송과 API 응답 확인 | 있음 |
+| scripts/manual/square/create_orders.py | 읽기·선택·ID 전달·함수 실행·검증·파일 저장 | create_order()를 호출 |
+| src/transform/square/orders_payload.py | 원본 데이터 검증과 요청 딕셔너리 생성 | 없음 |
+| src/clients/square/orders.py | HTTP 요청 전송과 API 응답 확인 | 있음 |
 
-현재 `tests/test_orders.py`는 직접 실행하는 수동 통합 테스트 스크립트다.
+현재 `scripts/manual/square/create_orders.py`는 직접 실행하는 수동 통합 테스트 스크립트다.
 파일명이 test여도 자동 단위 테스트로 구현한 것은 아니다.
 
 ```mermaid
@@ -427,11 +427,11 @@ Square 계산 금액을 원본과 비교한다.
 현재 `create_order()`는 전체 응답이 아니라 내부 `order` 객체만 반환한다.
 
 ```python
-# src/square/orders.py 내부
+# src/clients/square/orders.py 내부
 result = response.json()
 return result["order"]
 
-# tests/test_orders.py 내부
+# scripts/manual/square/create_orders.py 내부
 square_order = create_order(payload)
 square_order_id = square_order["id"]
 ```

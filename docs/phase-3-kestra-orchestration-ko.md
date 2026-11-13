@@ -206,13 +206,13 @@ Kestra가 초콜릿 프로젝트의 Compose 설정을 통해 실행되더라도,
 
 ```bash
 # 기존 방식대로 전체 테이블 적재
-python -m src.pipelines.online_to_postgres
+python -m src.pipelines.ingestion.online.load_tables_to_postgres
 
 # 상품만 적재
-python -m src.pipelines.online_to_postgres --tables products
+python -m src.pipelines.ingestion.online.load_tables_to_postgres --tables products
 
 # 여러 테이블 선택
-python -m src.pipelines.online_to_postgres --tables customers customer_addresses
+python -m src.pipelines.ingestion.online.load_tables_to_postgres --tables customers customer_addresses
 ```
 
 `argparse`의 `--tables`, `nargs="+"`, `choices=LOAD_ORDER`로 입력을 받고, 사용자가 입력한 순서와 관계없이 기존 `LOAD_ORDER` 순서대로 선택한 테이블을 적재합니다.
@@ -349,7 +349,7 @@ volumes:
 파일 검사 결과:
 
 ```text
-[FOUND] /project/src/pipelines/online_to_postgres.py
+[FOUND] /project/src/pipelines/ingestion/online/load_tables_to_postgres.py
 [FOUND] /project/data/raw/products_export.csv
 [FOUND] /project/requirements.txt
 [DONE] Project file access check
@@ -393,7 +393,7 @@ tasks:
       - pip install -r /project/requirements.txt
 
     commands:
-      - cd /project && python -m src.pipelines.online_to_postgres --tables products
+      - cd /project && python -m src.pipelines.ingestion.online.load_tables_to_postgres --tables products
 ```
 
 | 설정 | 역할 |
@@ -642,10 +642,10 @@ sql/migrations/001_add_ingestion_metadata.sql
 
 | Flow ID | 실행 Python 모듈 | 대상 테이블 | 상태 |
 |---|---|---|---|
-| `square_customers_to_postgres` | `src.pipelines.square_customers_to_postgres` | `raw_square.customers` | 성공 |
-| `square_locations_to_postgres` | `src.pipelines.square_locations_to_postgres` | `raw_square.locations` | 성공 |
-| `square_orders_to_postgres` | `src.pipelines.square_orders_to_postgres` | `raw_square.orders` | 성공 |
-| `square_catalog_to_postgres` | `src.pipelines.square_catalog_to_postgres` | `raw_square.catalog_objects` | 성공 |
+| `square_customers_to_postgres` | `src.pipelines.ingestion.square.load_customers_to_postgres` | `raw_square.customers` | 성공 |
+| `square_locations_to_postgres` | `src.pipelines.ingestion.square.load_locations_to_postgres` | `raw_square.locations` | 성공 |
+| `square_orders_to_postgres` | `src.pipelines.ingestion.square.load_orders_to_postgres` | `raw_square.orders` | 성공 |
+| `square_catalog_to_postgres` | `src.pipelines.ingestion.square.load_catalog_objects_to_postgres` | `raw_square.catalog_objects` | 성공 |
 
 Square의 주문 상품 정보는 현재 주문 JSON 원본 안에 저장합니다. 이번 작업에서 별도 Square 주문 상품 테이블을 만든 것은 아닙니다.
 
@@ -708,7 +708,7 @@ pipeline_run_id=pipeline_run_id,
 
 메타데이터는 원본 JSON 내부에 삽입하지 않고 별도 컬럼으로 저장합니다. 같은 ID를 다시 적재하면 원본과 마지막 실행 메타데이터를 갱신합니다. 원천에서 사라진 ID를 자동 삭제하는 동기화 방식은 아니며, 실행 이력 전체를 보존하지도 않습니다. 각 로더는 `engine.begin()`으로 전달된 행들을 하나의 트랜잭션에 저장하고, 파이프라인은 `finally`에서 `engine.dispose()`를 호출합니다.
 
-주문 파이프라인은 `src.square.location.list_locations()`로 매장을 조회한 뒤 각 매장의 `search_orders(location_ids=[...])` 결과를 모아 한 번에 저장하는 기존 구조를 유지했습니다. 매장이 없으면 오류를 발생시킵니다. 매장 모듈명은 실제 파일명에 맞춰 단수형 `location`을 사용합니다.
+주문 파이프라인은 `src.clients.square.locations.list_locations()`로 매장을 조회한 뒤 각 매장의 `search_orders(location_ids=[...])` 결과를 모아 한 번에 저장하는 기존 구조를 유지했습니다. 매장이 없으면 오류를 발생시킵니다. 매장 모듈명은 실제 파일명에 맞춰 단수형 `location`을 사용합니다.
 
 ### 18.3 Kestra Flow 구성
 
@@ -739,7 +739,7 @@ tasks:
       - pip install -r /project/requirements.txt
 
     commands:
-      - cd /project && python -m src.pipelines.square_customers_to_postgres
+      - cd /project && python -m src.pipelines.ingestion.square.load_customers_to_postgres
 ```
 
 나머지 Flow에서는 Flow ID, Task ID와 실행 모듈을 해당 데이터용으로 변경했습니다. 매번 별도 작업 컨테이너를 준비하고 `requirements.txt`를 설치합니다. 기존 프로젝트 설정을 통해 Square API 인증과 DB 연결을 사용했으며 인증 값은 문서에 기록하지 않습니다.

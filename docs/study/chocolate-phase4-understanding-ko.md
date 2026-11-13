@@ -113,7 +113,7 @@ chocolate-data-platform.raw_online.products
 새로 만든 진입점은 다음 파일이다.
 
 ```text
-src/pipelines/postgres_to_file.py
+src/pipelines/export/online/export_products_to_csv.py
 ```
 
 기존 파일과 역할을 구분하면 다음과 같다.
@@ -141,7 +141,7 @@ src/pipelines/postgres_to_file.py
 ### 로컬에서 먼저 실행한 이유
 
 ```powershell
-python -m src.pipelines.postgres_to_file --output-dir ./exports
+python -m src.pipelines.export.online.export_products_to_csv --output-dir ./exports
 ```
 
 `python -m`은 프로젝트 모듈을 실행한다는 뜻이고, `--output-dir`은 CSV 저장 위치를 전달하는 옵션이다.
@@ -216,7 +216,7 @@ Flow 안에는 두 개의 태스크가 순서대로 있다.
 commands:
   - >-
     cd /project &&
-    python -m src.pipelines.postgres_to_file
+    python -m src.pipelines.export.online.export_products_to_csv
     --output-dir "{{ workingDir }}"
 
 outputFiles:

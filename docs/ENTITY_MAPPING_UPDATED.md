@@ -487,7 +487,7 @@ Square에 고객이 존재하는 것과,
 ### 이번에 진행한 작업
 
 상품과 고객 다음으로 Lovable의 매장 데이터를 Square Location 생성 요청으로 변환했다.
-`tests/test_locations.py`에서 payload를 확인하고, `src/square/location.py`의 `create_location()`을 호출하는 흐름으로 테스트했다.
+`scripts/manual/square/create_locations.py`에서 payload를 확인하고, `src/clients/square/locations.py`의 `create_location()`을 호출하는 흐름으로 테스트했다.
 
 매장 생성 중 HTTP 400 `BAD_REQUEST`를 확인했고, 필수 주소 값과 우편번호를 점검했다.
 
@@ -730,20 +730,20 @@ ccf-sandbox-order-CCF-000004-v1
 
 | 경로 | 역할 |
 |---|---|
-| `src/extract/load_csv.py` | CSV 읽기 |
-| `src/transform/products.py` | 상품 요청 데이터 변환 |
-| `src/square/catalog.py` | 상품 검색·생성·삭제 및 결과 저장 |
-| `src/transform/customers.py` | 고객 요청 데이터 변환 |
-| `src/square/customers.py` | 고객 API 함수와 고객·주소 CSV 연결 정보 저장 |
-| `tests/test_customers.py` | 고객 한 명의 생성·결과 저장 확인 |
+| `src/extract/csv_reader.py` | CSV 읽기 |
+| `src/transform/square/products_payload.py` | 상품 요청 데이터 변환 |
+| `src/clients/square/catalog.py` | 상품 검색·생성·삭제 및 결과 저장 |
+| `src/transform/square/customers_payload.py` | 고객 요청 데이터 변환 |
+| `src/clients/square/customers.py` | 고객 API 함수와 고객·주소 CSV 연결 정보 저장 |
+| `scripts/manual/square/create_customers.py` | 고객 한 명의 생성·결과 저장 확인 |
 | `tests/test_customer_address.py` | 고객과 기본 주소 연결 확인 |
-| `src/square/location.py` | 매장 생성 API 함수 |
-| `tests/test_locations.py` | 매장 payload 확인과 생성 테스트 |
-| `src/pipelines/customers_pipeline.py` | 전체 POS 고객 처리 흐름으로 확장할 위치 |
-| `src/transform/orders.py` | 주문·항목 검증 및 Square payload 변환 |
-| `src/square/orders.py` | Square 주문 생성 API 호출 |
-| `tests/test_orders.py` | CCF-000004 선택, ID 조회, 단건 생성·검증·저장 코드 |
-| `src/pipelines/order_pipeline.py` | 완료된 RETAIL 주문 일괄 처리·기존 성공 건너뛰기·응답 기반 복구 |
+| `src/clients/square/locations.py` | 매장 생성 API 함수 |
+| `scripts/manual/square/create_locations.py` | 매장 payload 확인과 생성 테스트 |
+| `src/pipelines/source_to_square/sync_customers.py` | 전체 POS 고객 처리 흐름으로 확장할 위치 |
+| `src/transform/square/orders_payload.py` | 주문·항목 검증 및 Square payload 변환 |
+| `src/clients/square/orders.py` | Square 주문 생성 API 호출 |
+| `scripts/manual/square/create_orders.py` | CCF-000004 선택, ID 조회, 단건 생성·검증·저장 코드 |
+| `src/pipelines/source_to_square/sync_orders.py` | 완료된 RETAIL 주문 일괄 처리·기존 성공 건너뛰기·응답 기반 복구 |
 
 고객 삭제 함수가 존재하더라도,
 두 CSV 저장 실패 시 자동 삭제하는 흐름에서는 사용하지 않는다.
