@@ -4,10 +4,10 @@ __pycache__/
 .idea/
 *.pyc
 
-data/raw/
+#data/raw/
 data/processed/*.json
-data/processed/product_result
-data/processed/*.csv
-readme/*.md
-/exports/
+#data/processed/product_result
+#data/processed/*.csv
+#readme/*.md
+#/exports/
 .env.kestra

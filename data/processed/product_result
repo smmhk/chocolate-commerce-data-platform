@@ -1,0 +1,1275 @@
+C:\Users\smmhk\PycharmProjects\chocolate-commerce-data-platform\.venv\Scripts\python.exe C:\Users\smmhk\PycharmProjects\chocolate-commerce-data-platform\src\pipelines\products_pipeline.py
+
+===== RESULT =====
+Total products to check: 15
+--------------------------------------------------
+call search_product_by_sku() -> response json :  {'items': [{'type': 'ITEM', 'id': 'TUZYSKCNBSRKVVK6VZWUJZP6', 'updated_at': '2026-09-14T20:31:49.137Z', 'created_at': '2026-09-14T20:31:49.187Z', 'version': 1789417909137, 'is_deleted': False, 'present_at_all_locations': True, 'item_data': {'name': 'Midnight Dark Chocolate Bar', 'description': '72% single-origin dark chocolate.', 'is_taxable': True, 'variations': [{'type': 'ITEM_VARIATION', 'id': '6ZILZFQMPK3P32N7GVO7FEAM', 'updated_at': '2026-09-14T20:31:49.137Z', 'created_at': '2026-09-14T20:31:49.187Z', 'version': 1789417909137, 'is_deleted': False, 'present_at_all_locations': True, 'item_variation_data': {'item_id': 'TUZYSKCNBSRKVVK6VZWUJZP6', 'name': 'Regular', 'sku': 'CCF-BAR-002', 'ordinal': 0, 'pricing_type': 'FIXED_PRICING', 'price_money': {'amount': 725, 'currency': 'CAD'}, 'sellable': True, 'stockable': True}}], 'product_type': 'REGULAR', 'description_html': '<p>72% single-origin dark chocolate.</p>', 'description_plaintext': '72% single-origin dark chocolate.', 'is_archived': False}}], 'cursor': '', 'matched_variation_ids': ['LUVRFLSXHFVXJR3INAMLUALX', '6ZILZFQMPK3P32N7GVO7FEAM', '5OOFHBYA2STK4PZ7L2F7RI3F', 'RAE67JRBZFOMPSU5GSJ765HL']}
+[EXISTS] CCF-BAR-002
+call search_product_by_sku() -> response json :  {'cursor': ''}
+[NEW] CCF-BAR-003
+square_product (JSON payload for creating products in SQUARE)>>>>  {
+  "idempotency_key": "6bca964b-58ae-4a90-b09c-2c892207cd6d",
+  "object": {
+    "type": "ITEM",
+    "id": "#p003-item",
+    "item_data": {
+      "name": "Golden Caramel Crunch",
+      "description": "Buttery caramel shards in milk chocolate.",
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "#p003-variation",
+          "item_variation_data": {
+            "name": "Regular",
+            "sku": "CCF-BAR-003",
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 795,
+              "currency": "CAD"
+            },
+            "item_id": "#p003-item"
+          }
+        }
+      ]
+    }
+  }
+}
+http_response :  <Response [200]>
+RESULT OF CREATE SQUARE PRODUCT (response body) :  {
+  "catalog_object": {
+    "type": "ITEM",
+    "id": "EDULY2RZL2LKFBER7VUUU5LO",
+    "updated_at": "2026-09-22T23:33:31.189Z",
+    "created_at": "2026-09-22T23:33:31.189Z",
+    "version": 1790120011189,
+    "is_deleted": false,
+    "present_at_all_locations": true,
+    "item_data": {
+      "name": "Golden Caramel Crunch",
+      "description": "Buttery caramel shards in milk chocolate.",
+      "is_taxable": true,
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "EQJUQJMDHXWRJHITGYKCENOI",
+          "updated_at": "2026-09-22T23:33:31.189Z",
+          "created_at": "2026-09-22T23:33:31.189Z",
+          "version": 1790120011189,
+          "is_deleted": false,
+          "present_at_all_locations": true,
+          "item_variation_data": {
+            "item_id": "EDULY2RZL2LKFBER7VUUU5LO",
+            "name": "Regular",
+            "sku": "CCF-BAR-003",
+            "ordinal": 0,
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 795,
+              "currency": "CAD"
+            },
+            "sellable": true,
+            "stockable": true
+          }
+        }
+      ],
+      "product_type": "REGULAR",
+      "description_html": "<p>Buttery caramel shards in milk chocolate.</p>",
+      "description_plaintext": "Buttery caramel shards in milk chocolate.",
+      "is_archived": false
+    }
+  },
+  "id_mappings": [
+    {
+      "client_object_id": "#p003-item",
+      "object_id": "EDULY2RZL2LKFBER7VUUU5LO"
+    },
+    {
+      "client_object_id": "#p003-variation",
+      "object_id": "EQJUQJMDHXWRJHITGYKCENOI"
+    }
+  ]
+}
+          ITEM ID: EDULY2RZL2LKFBER7VUUU5LO
+          VARIATION ID: EQJUQJMDHXWRJHITGYKCENOI
+temporary_item_id >>>> #p003-item
+product_id >>>> p003
+[CSV UPDATED] product_id=p003, sku=CCF-BAR-003, status=SUCCESS
+Source product CSV updated successfully
+call search_product_by_sku() -> response json :  {'cursor': ''}
+[NEW] CCF-BAR-004
+square_product (JSON payload for creating products in SQUARE)>>>>  {
+  "idempotency_key": "98c9232a-1291-470b-a0d2-e2fce20f6038",
+  "object": {
+    "type": "ITEM",
+    "id": "#p004-item",
+    "item_data": {
+      "name": "Hazelnut Dream Bar",
+      "description": "Roasted hazelnut praline centre.",
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "#p004-variation",
+          "item_variation_data": {
+            "name": "Regular",
+            "sku": "CCF-BAR-004",
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 750,
+              "currency": "CAD"
+            },
+            "item_id": "#p004-item"
+          }
+        }
+      ]
+    }
+  }
+}
+http_response :  <Response [200]>
+RESULT OF CREATE SQUARE PRODUCT (response body) :  {
+  "catalog_object": {
+    "type": "ITEM",
+    "id": "I6WQRYEW2FQGIOJI2A3WQQRU",
+    "updated_at": "2026-09-22T23:33:32.636Z",
+    "created_at": "2026-09-22T23:33:32.636Z",
+    "version": 1790120012636,
+    "is_deleted": false,
+    "present_at_all_locations": true,
+    "item_data": {
+      "name": "Hazelnut Dream Bar",
+      "description": "Roasted hazelnut praline centre.",
+      "is_taxable": true,
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "WOHQV5M3C4NX4E6TNRE6MNAD",
+          "updated_at": "2026-09-22T23:33:32.636Z",
+          "created_at": "2026-09-22T23:33:32.636Z",
+          "version": 1790120012636,
+          "is_deleted": false,
+          "present_at_all_locations": true,
+          "item_variation_data": {
+            "item_id": "I6WQRYEW2FQGIOJI2A3WQQRU",
+            "name": "Regular",
+            "sku": "CCF-BAR-004",
+            "ordinal": 0,
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 750,
+              "currency": "CAD"
+            },
+            "sellable": true,
+            "stockable": true
+          }
+        }
+      ],
+      "product_type": "REGULAR",
+      "description_html": "<p>Roasted hazelnut praline centre.</p>",
+      "description_plaintext": "Roasted hazelnut praline centre.",
+      "is_archived": false
+    }
+  },
+  "id_mappings": [
+    {
+      "client_object_id": "#p004-item",
+      "object_id": "I6WQRYEW2FQGIOJI2A3WQQRU"
+    },
+    {
+      "client_object_id": "#p004-variation",
+      "object_id": "WOHQV5M3C4NX4E6TNRE6MNAD"
+    }
+  ]
+}
+          ITEM ID: I6WQRYEW2FQGIOJI2A3WQQRU
+          VARIATION ID: WOHQV5M3C4NX4E6TNRE6MNAD
+temporary_item_id >>>> #p004-item
+product_id >>>> p004
+[CSV UPDATED] product_id=p004, sku=CCF-BAR-004, status=SUCCESS
+Source product CSV updated successfully
+call search_product_by_sku() -> response json :  {'cursor': ''}
+[NEW] CCF-TRF-001
+square_product (JSON payload for creating products in SQUARE)>>>>  {
+  "idempotency_key": "d0362a13-1838-4a50-80fc-2f520b12b60d",
+  "object": {
+    "type": "ITEM",
+    "id": "#p005-item",
+    "item_data": {
+      "name": "Sea Salt Caramel Truffles",
+      "description": "Six flowing caramel truffles with sea salt.",
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "#p005-variation",
+          "item_variation_data": {
+            "name": "Regular",
+            "sku": "CCF-TRF-001",
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 1800,
+              "currency": "CAD"
+            },
+            "item_id": "#p005-item"
+          }
+        }
+      ]
+    }
+  }
+}
+http_response :  <Response [200]>
+RESULT OF CREATE SQUARE PRODUCT (response body) :  {
+  "catalog_object": {
+    "type": "ITEM",
+    "id": "4JUXFTOY474DWAP2U6EWYHAZ",
+    "updated_at": "2026-09-22T23:33:34.001Z",
+    "created_at": "2026-09-22T23:33:34.001Z",
+    "version": 1790120014001,
+    "is_deleted": false,
+    "present_at_all_locations": true,
+    "item_data": {
+      "name": "Sea Salt Caramel Truffles",
+      "description": "Six flowing caramel truffles with sea salt.",
+      "is_taxable": true,
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "JDZVSYOT3NA2JWK7AJWKMCE5",
+          "updated_at": "2026-09-22T23:33:34.001Z",
+          "created_at": "2026-09-22T23:33:34.001Z",
+          "version": 1790120014001,
+          "is_deleted": false,
+          "present_at_all_locations": true,
+          "item_variation_data": {
+            "item_id": "4JUXFTOY474DWAP2U6EWYHAZ",
+            "name": "Regular",
+            "sku": "CCF-TRF-001",
+            "ordinal": 0,
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 1800,
+              "currency": "CAD"
+            },
+            "sellable": true,
+            "stockable": true
+          }
+        }
+      ],
+      "product_type": "REGULAR",
+      "description_html": "<p>Six flowing caramel truffles with sea salt.</p>",
+      "description_plaintext": "Six flowing caramel truffles with sea salt.",
+      "is_archived": false
+    }
+  },
+  "id_mappings": [
+    {
+      "client_object_id": "#p005-item",
+      "object_id": "4JUXFTOY474DWAP2U6EWYHAZ"
+    },
+    {
+      "client_object_id": "#p005-variation",
+      "object_id": "JDZVSYOT3NA2JWK7AJWKMCE5"
+    }
+  ]
+}
+          ITEM ID: 4JUXFTOY474DWAP2U6EWYHAZ
+          VARIATION ID: JDZVSYOT3NA2JWK7AJWKMCE5
+temporary_item_id >>>> #p005-item
+product_id >>>> p005
+[CSV UPDATED] product_id=p005, sku=CCF-TRF-001, status=SUCCESS
+Source product CSV updated successfully
+call search_product_by_sku() -> response json :  {'cursor': ''}
+[NEW] CCF-TRF-002
+square_product (JSON payload for creating products in SQUARE)>>>>  {
+  "idempotency_key": "12c8fc2b-49b3-455e-aa9d-eeb918cd1fd3",
+  "object": {
+    "type": "ITEM",
+    "id": "#p006-item",
+    "item_data": {
+      "name": "Raspberry Truffle Collection",
+      "description": "Tart raspberry ganache in dark shells.",
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "#p006-variation",
+          "item_variation_data": {
+            "name": "Regular",
+            "sku": "CCF-TRF-002",
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 1950,
+              "currency": "CAD"
+            },
+            "item_id": "#p006-item"
+          }
+        }
+      ]
+    }
+  }
+}
+http_response :  <Response [200]>
+RESULT OF CREATE SQUARE PRODUCT (response body) :  {
+  "catalog_object": {
+    "type": "ITEM",
+    "id": "JI7I2N3H574XZZ34JY6IZLGN",
+    "updated_at": "2026-09-22T23:33:35.262Z",
+    "created_at": "2026-09-22T23:33:35.262Z",
+    "version": 1790120015262,
+    "is_deleted": false,
+    "present_at_all_locations": true,
+    "item_data": {
+      "name": "Raspberry Truffle Collection",
+      "description": "Tart raspberry ganache in dark shells.",
+      "is_taxable": true,
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "P2IM5WHVCY44L3P5Z2UYWMLA",
+          "updated_at": "2026-09-22T23:33:35.262Z",
+          "created_at": "2026-09-22T23:33:35.262Z",
+          "version": 1790120015262,
+          "is_deleted": false,
+          "present_at_all_locations": true,
+          "item_variation_data": {
+            "item_id": "JI7I2N3H574XZZ34JY6IZLGN",
+            "name": "Regular",
+            "sku": "CCF-TRF-002",
+            "ordinal": 0,
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 1950,
+              "currency": "CAD"
+            },
+            "sellable": true,
+            "stockable": true
+          }
+        }
+      ],
+      "product_type": "REGULAR",
+      "description_html": "<p>Tart raspberry ganache in dark shells.</p>",
+      "description_plaintext": "Tart raspberry ganache in dark shells.",
+      "is_archived": false
+    }
+  },
+  "id_mappings": [
+    {
+      "client_object_id": "#p006-item",
+      "object_id": "JI7I2N3H574XZZ34JY6IZLGN"
+    },
+    {
+      "client_object_id": "#p006-variation",
+      "object_id": "P2IM5WHVCY44L3P5Z2UYWMLA"
+    }
+  ]
+}
+          ITEM ID: JI7I2N3H574XZZ34JY6IZLGN
+          VARIATION ID: P2IM5WHVCY44L3P5Z2UYWMLA
+temporary_item_id >>>> #p006-item
+product_id >>>> p006
+[CSV UPDATED] product_id=p006, sku=CCF-TRF-002, status=SUCCESS
+Source product CSV updated successfully
+call search_product_by_sku() -> response json :  {'cursor': ''}
+[NEW] CCF-GFT-001
+square_product (JSON payload for creating products in SQUARE)>>>>  {
+  "idempotency_key": "a76a2d5b-387c-438f-866c-7a67cf2987d4",
+  "object": {
+    "type": "ITEM",
+    "id": "#p007-item",
+    "item_data": {
+      "name": "Chocolate Factory Gift Box",
+      "description": "Twelve-piece signature assortment.",
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "#p007-variation",
+          "item_variation_data": {
+            "name": "Regular",
+            "sku": "CCF-GFT-001",
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 3400,
+              "currency": "CAD"
+            },
+            "item_id": "#p007-item"
+          }
+        }
+      ]
+    }
+  }
+}
+http_response :  <Response [200]>
+RESULT OF CREATE SQUARE PRODUCT (response body) :  {
+  "catalog_object": {
+    "type": "ITEM",
+    "id": "D7TI2OUVT7JJYH246WPUFEHC",
+    "updated_at": "2026-09-22T23:33:36.572Z",
+    "created_at": "2026-09-22T23:33:36.572Z",
+    "version": 1790120016572,
+    "is_deleted": false,
+    "present_at_all_locations": true,
+    "item_data": {
+      "name": "Chocolate Factory Gift Box",
+      "description": "Twelve-piece signature assortment.",
+      "is_taxable": true,
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "4CGSBSV2TUGZQ5AZPW4BP6YT",
+          "updated_at": "2026-09-22T23:33:36.572Z",
+          "created_at": "2026-09-22T23:33:36.572Z",
+          "version": 1790120016572,
+          "is_deleted": false,
+          "present_at_all_locations": true,
+          "item_variation_data": {
+            "item_id": "D7TI2OUVT7JJYH246WPUFEHC",
+            "name": "Regular",
+            "sku": "CCF-GFT-001",
+            "ordinal": 0,
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 3400,
+              "currency": "CAD"
+            },
+            "sellable": true,
+            "stockable": true
+          }
+        }
+      ],
+      "product_type": "REGULAR",
+      "description_html": "<p>Twelve-piece signature assortment.</p>",
+      "description_plaintext": "Twelve-piece signature assortment.",
+      "is_archived": false
+    }
+  },
+  "id_mappings": [
+    {
+      "client_object_id": "#p007-item",
+      "object_id": "D7TI2OUVT7JJYH246WPUFEHC"
+    },
+    {
+      "client_object_id": "#p007-variation",
+      "object_id": "4CGSBSV2TUGZQ5AZPW4BP6YT"
+    }
+  ]
+}
+          ITEM ID: D7TI2OUVT7JJYH246WPUFEHC
+          VARIATION ID: 4CGSBSV2TUGZQ5AZPW4BP6YT
+temporary_item_id >>>> #p007-item
+product_id >>>> p007
+[CSV UPDATED] product_id=p007, sku=CCF-GFT-001, status=SUCCESS
+Source product CSV updated successfully
+call search_product_by_sku() -> response json :  {'cursor': ''}
+[NEW] CCF-GFT-002
+square_product (JSON payload for creating products in SQUARE)>>>>  {
+  "idempotency_key": "b37d5af6-9ab2-4734-a55d-c254732e61c1",
+  "object": {
+    "type": "ITEM",
+    "id": "#p008-item",
+    "item_data": {
+      "name": "Golden Ticket Collection",
+      "description": "Our grand assortment with a keepsake golden ticket.",
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "#p008-variation",
+          "item_variation_data": {
+            "name": "Regular",
+            "sku": "CCF-GFT-002",
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 4800,
+              "currency": "CAD"
+            },
+            "item_id": "#p008-item"
+          }
+        }
+      ]
+    }
+  }
+}
+http_response :  <Response [200]>
+RESULT OF CREATE SQUARE PRODUCT (response body) :  {
+  "catalog_object": {
+    "type": "ITEM",
+    "id": "FO72PSV56KJMSV5SRD7HIFVT",
+    "updated_at": "2026-09-22T23:33:38.179Z",
+    "created_at": "2026-09-22T23:33:38.179Z",
+    "version": 1790120018179,
+    "is_deleted": false,
+    "present_at_all_locations": true,
+    "item_data": {
+      "name": "Golden Ticket Collection",
+      "description": "Our grand assortment with a keepsake golden ticket.",
+      "is_taxable": true,
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "NKF6FBIGQOI4T6YLTLWAPICB",
+          "updated_at": "2026-09-22T23:33:38.179Z",
+          "created_at": "2026-09-22T23:33:38.179Z",
+          "version": 1790120018179,
+          "is_deleted": false,
+          "present_at_all_locations": true,
+          "item_variation_data": {
+            "item_id": "FO72PSV56KJMSV5SRD7HIFVT",
+            "name": "Regular",
+            "sku": "CCF-GFT-002",
+            "ordinal": 0,
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 4800,
+              "currency": "CAD"
+            },
+            "sellable": true,
+            "stockable": true
+          }
+        }
+      ],
+      "product_type": "REGULAR",
+      "description_html": "<p>Our grand assortment with a keepsake golden ticket.</p>",
+      "description_plaintext": "Our grand assortment with a keepsake golden ticket.",
+      "is_archived": false
+    }
+  },
+  "id_mappings": [
+    {
+      "client_object_id": "#p008-item",
+      "object_id": "FO72PSV56KJMSV5SRD7HIFVT"
+    },
+    {
+      "client_object_id": "#p008-variation",
+      "object_id": "NKF6FBIGQOI4T6YLTLWAPICB"
+    }
+  ]
+}
+          ITEM ID: FO72PSV56KJMSV5SRD7HIFVT
+          VARIATION ID: NKF6FBIGQOI4T6YLTLWAPICB
+temporary_item_id >>>> #p008-item
+product_id >>>> p008
+[CSV UPDATED] product_id=p008, sku=CCF-GFT-002, status=SUCCESS
+Source product CSV updated successfully
+call search_product_by_sku() -> response json :  {'cursor': ''}
+[NEW] CCF-BTE-001
+square_product (JSON payload for creating products in SQUARE)>>>>  {
+  "idempotency_key": "b940ba48-9184-43ca-bd41-b3df38228874",
+  "object": {
+    "type": "ITEM",
+    "id": "#p009-item",
+    "item_data": {
+      "name": "Maple Chocolate Bites",
+      "description": "Maple cream bites rolled in cocoa.",
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "#p009-variation",
+          "item_variation_data": {
+            "name": "Regular",
+            "sku": "CCF-BTE-001",
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 975,
+              "currency": "CAD"
+            },
+            "item_id": "#p009-item"
+          }
+        }
+      ]
+    }
+  }
+}
+http_response :  <Response [200]>
+RESULT OF CREATE SQUARE PRODUCT (response body) :  {
+  "catalog_object": {
+    "type": "ITEM",
+    "id": "BYWIB2YUNVIKYUTTEJWFPE4S",
+    "updated_at": "2026-09-22T23:33:39.535Z",
+    "created_at": "2026-09-22T23:33:39.535Z",
+    "version": 1790120019535,
+    "is_deleted": false,
+    "present_at_all_locations": true,
+    "item_data": {
+      "name": "Maple Chocolate Bites",
+      "description": "Maple cream bites rolled in cocoa.",
+      "is_taxable": true,
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "EBXNPEVMJD5ELKIHMLUESCUT",
+          "updated_at": "2026-09-22T23:33:39.535Z",
+          "created_at": "2026-09-22T23:33:39.535Z",
+          "version": 1790120019535,
+          "is_deleted": false,
+          "present_at_all_locations": true,
+          "item_variation_data": {
+            "item_id": "BYWIB2YUNVIKYUTTEJWFPE4S",
+            "name": "Regular",
+            "sku": "CCF-BTE-001",
+            "ordinal": 0,
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 975,
+              "currency": "CAD"
+            },
+            "sellable": true,
+            "stockable": true
+          }
+        }
+      ],
+      "product_type": "REGULAR",
+      "description_html": "<p>Maple cream bites rolled in cocoa.</p>",
+      "description_plaintext": "Maple cream bites rolled in cocoa.",
+      "is_archived": false
+    }
+  },
+  "id_mappings": [
+    {
+      "client_object_id": "#p009-item",
+      "object_id": "BYWIB2YUNVIKYUTTEJWFPE4S"
+    },
+    {
+      "client_object_id": "#p009-variation",
+      "object_id": "EBXNPEVMJD5ELKIHMLUESCUT"
+    }
+  ]
+}
+          ITEM ID: BYWIB2YUNVIKYUTTEJWFPE4S
+          VARIATION ID: EBXNPEVMJD5ELKIHMLUESCUT
+temporary_item_id >>>> #p009-item
+product_id >>>> p009
+[CSV UPDATED] product_id=p009, sku=CCF-BTE-001, status=SUCCESS
+Source product CSV updated successfully
+call search_product_by_sku() -> response json :  {'cursor': ''}
+[NEW] CCF-CUP-001
+square_product (JSON payload for creating products in SQUARE)>>>>  {
+  "idempotency_key": "06f78d17-b975-45a7-a33b-61f97296fae0",
+  "object": {
+    "type": "ITEM",
+    "id": "#p010-item",
+    "item_data": {
+      "name": "Peanut Butter Chocolate Cups",
+      "description": "Whipped peanut butter in milk chocolate cups.",
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "#p010-variation",
+          "item_variation_data": {
+            "name": "Regular",
+            "sku": "CCF-CUP-001",
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 1225,
+              "currency": "CAD"
+            },
+            "item_id": "#p010-item"
+          }
+        }
+      ]
+    }
+  }
+}
+http_response :  <Response [200]>
+RESULT OF CREATE SQUARE PRODUCT (response body) :  {
+  "catalog_object": {
+    "type": "ITEM",
+    "id": "PP6TPJE36NURID3BUSJCS5ML",
+    "updated_at": "2026-09-22T23:33:40.879Z",
+    "created_at": "2026-09-22T23:33:40.879Z",
+    "version": 1790120020879,
+    "is_deleted": false,
+    "present_at_all_locations": true,
+    "item_data": {
+      "name": "Peanut Butter Chocolate Cups",
+      "description": "Whipped peanut butter in milk chocolate cups.",
+      "is_taxable": true,
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "W2433RJKMCL7DGBGKZLXCQSM",
+          "updated_at": "2026-09-22T23:33:40.879Z",
+          "created_at": "2026-09-22T23:33:40.879Z",
+          "version": 1790120020879,
+          "is_deleted": false,
+          "present_at_all_locations": true,
+          "item_variation_data": {
+            "item_id": "PP6TPJE36NURID3BUSJCS5ML",
+            "name": "Regular",
+            "sku": "CCF-CUP-001",
+            "ordinal": 0,
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 1225,
+              "currency": "CAD"
+            },
+            "sellable": true,
+            "stockable": true
+          }
+        }
+      ],
+      "product_type": "REGULAR",
+      "description_html": "<p>Whipped peanut butter in milk chocolate cups.</p>",
+      "description_plaintext": "Whipped peanut butter in milk chocolate cups.",
+      "is_archived": false
+    }
+  },
+  "id_mappings": [
+    {
+      "client_object_id": "#p010-item",
+      "object_id": "PP6TPJE36NURID3BUSJCS5ML"
+    },
+    {
+      "client_object_id": "#p010-variation",
+      "object_id": "W2433RJKMCL7DGBGKZLXCQSM"
+    }
+  ]
+}
+          ITEM ID: PP6TPJE36NURID3BUSJCS5ML
+          VARIATION ID: W2433RJKMCL7DGBGKZLXCQSM
+temporary_item_id >>>> #p010-item
+product_id >>>> p010
+[CSV UPDATED] product_id=p010, sku=CCF-CUP-001, status=SUCCESS
+Source product CSV updated successfully
+call search_product_by_sku() -> response json :  {'cursor': ''}
+[NEW] CCF-SEA-001
+square_product (JSON payload for creating products in SQUARE)>>>>  {
+  "idempotency_key": "d276a745-74db-4644-ac92-b0f06128b182",
+  "object": {
+    "type": "ITEM",
+    "id": "#p011-item",
+    "item_data": {
+      "name": "Strawberry Chocolate Hearts",
+      "description": "Strawberry cream hearts for the season.",
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "#p011-variation",
+          "item_variation_data": {
+            "name": "Regular",
+            "sku": "CCF-SEA-001",
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 1550,
+              "currency": "CAD"
+            },
+            "item_id": "#p011-item"
+          }
+        }
+      ]
+    }
+  }
+}
+http_response :  <Response [200]>
+RESULT OF CREATE SQUARE PRODUCT (response body) :  {
+  "catalog_object": {
+    "type": "ITEM",
+    "id": "EFB2X5MF42R4REREVMY5F5A4",
+    "updated_at": "2026-09-22T23:33:42.162Z",
+    "created_at": "2026-09-22T23:33:42.162Z",
+    "version": 1790120022162,
+    "is_deleted": false,
+    "present_at_all_locations": true,
+    "item_data": {
+      "name": "Strawberry Chocolate Hearts",
+      "description": "Strawberry cream hearts for the season.",
+      "is_taxable": true,
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "GLIJH2ZAPCZWBX7MPPLMTGAW",
+          "updated_at": "2026-09-22T23:33:42.162Z",
+          "created_at": "2026-09-22T23:33:42.162Z",
+          "version": 1790120022162,
+          "is_deleted": false,
+          "present_at_all_locations": true,
+          "item_variation_data": {
+            "item_id": "EFB2X5MF42R4REREVMY5F5A4",
+            "name": "Regular",
+            "sku": "CCF-SEA-001",
+            "ordinal": 0,
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 1550,
+              "currency": "CAD"
+            },
+            "sellable": true,
+            "stockable": true
+          }
+        }
+      ],
+      "product_type": "REGULAR",
+      "description_html": "<p>Strawberry cream hearts for the season.</p>",
+      "description_plaintext": "Strawberry cream hearts for the season.",
+      "is_archived": false
+    }
+  },
+  "id_mappings": [
+    {
+      "client_object_id": "#p011-item",
+      "object_id": "EFB2X5MF42R4REREVMY5F5A4"
+    },
+    {
+      "client_object_id": "#p011-variation",
+      "object_id": "GLIJH2ZAPCZWBX7MPPLMTGAW"
+    }
+  ]
+}
+          ITEM ID: EFB2X5MF42R4REREVMY5F5A4
+          VARIATION ID: GLIJH2ZAPCZWBX7MPPLMTGAW
+temporary_item_id >>>> #p011-item
+product_id >>>> p011
+[CSV UPDATED] product_id=p011, sku=CCF-SEA-001, status=SUCCESS
+Source product CSV updated successfully
+call search_product_by_sku() -> response json :  {'cursor': ''}
+[NEW] CCF-BAR-005
+square_product (JSON payload for creating products in SQUARE)>>>>  {
+  "idempotency_key": "2d8375b9-67cd-443d-bcd5-9522de20c5a1",
+  "object": {
+    "type": "ITEM",
+    "id": "#p012-item",
+    "item_data": {
+      "name": "Espresso Dark Chocolate",
+      "description": "Dark chocolate with fine espresso grounds.",
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "#p012-variation",
+          "item_variation_data": {
+            "name": "Regular",
+            "sku": "CCF-BAR-005",
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 775,
+              "currency": "CAD"
+            },
+            "item_id": "#p012-item"
+          }
+        }
+      ]
+    }
+  }
+}
+http_response :  <Response [200]>
+RESULT OF CREATE SQUARE PRODUCT (response body) :  {
+  "catalog_object": {
+    "type": "ITEM",
+    "id": "ZKRCKNZ2R6JLNSS5S7B2KGK7",
+    "updated_at": "2026-09-22T23:33:43.316Z",
+    "created_at": "2026-09-22T23:33:43.316Z",
+    "version": 1790120023316,
+    "is_deleted": false,
+    "present_at_all_locations": true,
+    "item_data": {
+      "name": "Espresso Dark Chocolate",
+      "description": "Dark chocolate with fine espresso grounds.",
+      "is_taxable": true,
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "C2NNUPDPBKP72DX5JMKG5UPP",
+          "updated_at": "2026-09-22T23:33:43.316Z",
+          "created_at": "2026-09-22T23:33:43.316Z",
+          "version": 1790120023316,
+          "is_deleted": false,
+          "present_at_all_locations": true,
+          "item_variation_data": {
+            "item_id": "ZKRCKNZ2R6JLNSS5S7B2KGK7",
+            "name": "Regular",
+            "sku": "CCF-BAR-005",
+            "ordinal": 0,
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 775,
+              "currency": "CAD"
+            },
+            "sellable": true,
+            "stockable": true
+          }
+        }
+      ],
+      "product_type": "REGULAR",
+      "description_html": "<p>Dark chocolate with fine espresso grounds.</p>",
+      "description_plaintext": "Dark chocolate with fine espresso grounds.",
+      "is_archived": false
+    }
+  },
+  "id_mappings": [
+    {
+      "client_object_id": "#p012-item",
+      "object_id": "ZKRCKNZ2R6JLNSS5S7B2KGK7"
+    },
+    {
+      "client_object_id": "#p012-variation",
+      "object_id": "C2NNUPDPBKP72DX5JMKG5UPP"
+    }
+  ]
+}
+          ITEM ID: ZKRCKNZ2R6JLNSS5S7B2KGK7
+          VARIATION ID: C2NNUPDPBKP72DX5JMKG5UPP
+temporary_item_id >>>> #p012-item
+product_id >>>> p012
+[CSV UPDATED] product_id=p012, sku=CCF-BAR-005, status=SUCCESS
+Source product CSV updated successfully
+call search_product_by_sku() -> response json :  {'cursor': ''}
+[NEW] CCF-BAR-006
+square_product (JSON payload for creating products in SQUARE)>>>>  {
+  "idempotency_key": "dd1561de-a8c6-4400-b2ab-1247427c1925",
+  "object": {
+    "type": "ITEM",
+    "id": "#p013-item",
+    "item_data": {
+      "name": "Cookies & Cream Bar",
+      "description": "White chocolate with crushed cocoa cookies.",
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "#p013-variation",
+          "item_variation_data": {
+            "name": "Regular",
+            "sku": "CCF-BAR-006",
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 695,
+              "currency": "CAD"
+            },
+            "item_id": "#p013-item"
+          }
+        }
+      ]
+    }
+  }
+}
+http_response :  <Response [200]>
+RESULT OF CREATE SQUARE PRODUCT (response body) :  {
+  "catalog_object": {
+    "type": "ITEM",
+    "id": "JURI5O3AGR2LP4FBJ7HEJMVV",
+    "updated_at": "2026-09-22T23:33:44.493Z",
+    "created_at": "2026-09-22T23:33:44.493Z",
+    "version": 1790120024493,
+    "is_deleted": false,
+    "present_at_all_locations": true,
+    "item_data": {
+      "name": "Cookies & Cream Bar",
+      "description": "White chocolate with crushed cocoa cookies.",
+      "is_taxable": true,
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "4L6THCTZOLODT5TQFX6ABFT4",
+          "updated_at": "2026-09-22T23:33:44.493Z",
+          "created_at": "2026-09-22T23:33:44.493Z",
+          "version": 1790120024493,
+          "is_deleted": false,
+          "present_at_all_locations": true,
+          "item_variation_data": {
+            "item_id": "JURI5O3AGR2LP4FBJ7HEJMVV",
+            "name": "Regular",
+            "sku": "CCF-BAR-006",
+            "ordinal": 0,
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 695,
+              "currency": "CAD"
+            },
+            "sellable": true,
+            "stockable": true
+          }
+        }
+      ],
+      "product_type": "REGULAR",
+      "description_html": "<p>White chocolate with crushed cocoa cookies.</p>",
+      "description_plaintext": "White chocolate with crushed cocoa cookies.",
+      "is_archived": false
+    }
+  },
+  "id_mappings": [
+    {
+      "client_object_id": "#p013-item",
+      "object_id": "JURI5O3AGR2LP4FBJ7HEJMVV"
+    },
+    {
+      "client_object_id": "#p013-variation",
+      "object_id": "4L6THCTZOLODT5TQFX6ABFT4"
+    }
+  ]
+}
+          ITEM ID: JURI5O3AGR2LP4FBJ7HEJMVV
+          VARIATION ID: 4L6THCTZOLODT5TQFX6ABFT4
+temporary_item_id >>>> #p013-item
+product_id >>>> p013
+[CSV UPDATED] product_id=p013, sku=CCF-BAR-006, status=SUCCESS
+Source product CSV updated successfully
+call search_product_by_sku() -> response json :  {'cursor': ''}
+[NEW] CCF-TRF-003
+square_product (JSON payload for creating products in SQUARE)>>>>  {
+  "idempotency_key": "f96b25bf-c4b6-4331-82b3-d1969217fd28",
+  "object": {
+    "type": "ITEM",
+    "id": "#p014-item",
+    "item_data": {
+      "name": "Magical Assorted Truffles",
+      "description": "Twelve truffles, twelve fillings, one surprise.",
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "#p014-variation",
+          "item_variation_data": {
+            "name": "Regular",
+            "sku": "CCF-TRF-003",
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 2650,
+              "currency": "CAD"
+            },
+            "item_id": "#p014-item"
+          }
+        }
+      ]
+    }
+  }
+}
+http_response :  <Response [200]>
+RESULT OF CREATE SQUARE PRODUCT (response body) :  {
+  "catalog_object": {
+    "type": "ITEM",
+    "id": "5L3XH3QVK7QE3XVT4LKVKYDR",
+    "updated_at": "2026-09-22T23:33:45.711Z",
+    "created_at": "2026-09-22T23:33:45.711Z",
+    "version": 1790120025711,
+    "is_deleted": false,
+    "present_at_all_locations": true,
+    "item_data": {
+      "name": "Magical Assorted Truffles",
+      "description": "Twelve truffles, twelve fillings, one surprise.",
+      "is_taxable": true,
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "ZLKELN2TXYKIJYT73J7J6CKX",
+          "updated_at": "2026-09-22T23:33:45.711Z",
+          "created_at": "2026-09-22T23:33:45.711Z",
+          "version": 1790120025711,
+          "is_deleted": false,
+          "present_at_all_locations": true,
+          "item_variation_data": {
+            "item_id": "5L3XH3QVK7QE3XVT4LKVKYDR",
+            "name": "Regular",
+            "sku": "CCF-TRF-003",
+            "ordinal": 0,
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 2650,
+              "currency": "CAD"
+            },
+            "sellable": true,
+            "stockable": true
+          }
+        }
+      ],
+      "product_type": "REGULAR",
+      "description_html": "<p>Twelve truffles, twelve fillings, one surprise.</p>",
+      "description_plaintext": "Twelve truffles, twelve fillings, one surprise.",
+      "is_archived": false
+    }
+  },
+  "id_mappings": [
+    {
+      "client_object_id": "#p014-item",
+      "object_id": "5L3XH3QVK7QE3XVT4LKVKYDR"
+    },
+    {
+      "client_object_id": "#p014-variation",
+      "object_id": "ZLKELN2TXYKIJYT73J7J6CKX"
+    }
+  ]
+}
+          ITEM ID: 5L3XH3QVK7QE3XVT4LKVKYDR
+          VARIATION ID: ZLKELN2TXYKIJYT73J7J6CKX
+temporary_item_id >>>> #p014-item
+product_id >>>> p014
+[CSV UPDATED] product_id=p014, sku=CCF-TRF-003, status=SUCCESS
+Source product CSV updated successfully
+call search_product_by_sku() -> response json :  {'cursor': ''}
+[NEW] CCF-SEA-002
+square_product (JSON payload for creating products in SQUARE)>>>>  {
+  "idempotency_key": "f90f830c-b3f4-47a3-a9fc-19b9ecfb566d",
+  "object": {
+    "type": "ITEM",
+    "id": "#p015-item",
+    "item_data": {
+      "name": "Seasonal Celebration Box",
+      "description": "Limited seasonal assortment in a ribboned box.",
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "#p015-variation",
+          "item_variation_data": {
+            "name": "Regular",
+            "sku": "CCF-SEA-002",
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 4200,
+              "currency": "CAD"
+            },
+            "item_id": "#p015-item"
+          }
+        }
+      ]
+    }
+  }
+}
+http_response :  <Response [200]>
+RESULT OF CREATE SQUARE PRODUCT (response body) :  {
+  "catalog_object": {
+    "type": "ITEM",
+    "id": "RJEZKE2TAO7KNT25NNET3KIB",
+    "updated_at": "2026-09-22T23:33:47.086Z",
+    "created_at": "2026-09-22T23:33:47.086Z",
+    "version": 1790120027086,
+    "is_deleted": false,
+    "present_at_all_locations": true,
+    "item_data": {
+      "name": "Seasonal Celebration Box",
+      "description": "Limited seasonal assortment in a ribboned box.",
+      "is_taxable": true,
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "Q7JXHXSXY7JRZPDGIBF3DWA7",
+          "updated_at": "2026-09-22T23:33:47.086Z",
+          "created_at": "2026-09-22T23:33:47.086Z",
+          "version": 1790120027086,
+          "is_deleted": false,
+          "present_at_all_locations": true,
+          "item_variation_data": {
+            "item_id": "RJEZKE2TAO7KNT25NNET3KIB",
+            "name": "Regular",
+            "sku": "CCF-SEA-002",
+            "ordinal": 0,
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 4200,
+              "currency": "CAD"
+            },
+            "sellable": true,
+            "stockable": true
+          }
+        }
+      ],
+      "product_type": "REGULAR",
+      "description_html": "<p>Limited seasonal assortment in a ribboned box.</p>",
+      "description_plaintext": "Limited seasonal assortment in a ribboned box.",
+      "is_archived": false
+    }
+  },
+  "id_mappings": [
+    {
+      "client_object_id": "#p015-item",
+      "object_id": "RJEZKE2TAO7KNT25NNET3KIB"
+    },
+    {
+      "client_object_id": "#p015-variation",
+      "object_id": "Q7JXHXSXY7JRZPDGIBF3DWA7"
+    }
+  ]
+}
+          ITEM ID: RJEZKE2TAO7KNT25NNET3KIB
+          VARIATION ID: Q7JXHXSXY7JRZPDGIBF3DWA7
+temporary_item_id >>>> #p015-item
+product_id >>>> p015
+[CSV UPDATED] product_id=p015, sku=CCF-SEA-002, status=SUCCESS
+Source product CSV updated successfully
+call search_product_by_sku() -> response json :  {'cursor': ''}
+[NEW] CCF-BAR-001
+square_product (JSON payload for creating products in SQUARE)>>>>  {
+  "idempotency_key": "321ef8b4-1a13-44a3-a108-9ca133c782d6",
+  "object": {
+    "type": "ITEM",
+    "id": "#p001-item",
+    "item_data": {
+      "name": "Charlie's Classic Milk Chocolate Bar",
+      "description": "Creamy stone-ground milk chocolate in gold foil.",
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "#p001-variation",
+          "item_variation_data": {
+            "name": "Regular",
+            "sku": "CCF-BAR-001",
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 650,
+              "currency": "CAD"
+            },
+            "item_id": "#p001-item"
+          }
+        }
+      ]
+    }
+  }
+}
+http_response :  <Response [200]>
+RESULT OF CREATE SQUARE PRODUCT (response body) :  {
+  "catalog_object": {
+    "type": "ITEM",
+    "id": "H36KLDGKLTYONVTP33CISNYY",
+    "updated_at": "2026-09-22T23:33:48.246Z",
+    "created_at": "2026-09-22T23:33:48.246Z",
+    "version": 1790120028246,
+    "is_deleted": false,
+    "present_at_all_locations": true,
+    "item_data": {
+      "name": "Charlie's Classic Milk Chocolate Bar",
+      "description": "Creamy stone-ground milk chocolate in gold foil.",
+      "is_taxable": true,
+      "variations": [
+        {
+          "type": "ITEM_VARIATION",
+          "id": "4FBXAICN56SCJIBP7VPNHCAI",
+          "updated_at": "2026-09-22T23:33:48.246Z",
+          "created_at": "2026-09-22T23:33:48.246Z",
+          "version": 1790120028246,
+          "is_deleted": false,
+          "present_at_all_locations": true,
+          "item_variation_data": {
+            "item_id": "H36KLDGKLTYONVTP33CISNYY",
+            "name": "Regular",
+            "sku": "CCF-BAR-001",
+            "ordinal": 0,
+            "pricing_type": "FIXED_PRICING",
+            "price_money": {
+              "amount": 650,
+              "currency": "CAD"
+            },
+            "sellable": true,
+            "stockable": true
+          }
+        }
+      ],
+      "product_type": "REGULAR",
+      "description_html": "<p>Creamy stone-ground milk chocolate in gold foil.</p>",
+      "description_plaintext": "Creamy stone-ground milk chocolate in gold foil.",
+      "is_archived": false
+    }
+  },
+  "id_mappings": [
+    {
+      "client_object_id": "#p001-item",
+      "object_id": "H36KLDGKLTYONVTP33CISNYY"
+    },
+    {
+      "client_object_id": "#p001-variation",
+      "object_id": "4FBXAICN56SCJIBP7VPNHCAI"
+    }
+  ]
+}
+          ITEM ID: H36KLDGKLTYONVTP33CISNYY
+          VARIATION ID: 4FBXAICN56SCJIBP7VPNHCAI
+temporary_item_id >>>> #p001-item
+product_id >>>> p001
+[CSV UPDATED] product_id=p001, sku=CCF-BAR-001, status=SUCCESS
+Source product CSV updated successfully
+--------------------------------------------------
+Product Processing Summary
+Total checked : 15
+Already exists: 1
+New products  : 14
+Processed JSON saved to: C:\Users\smmhk\PycharmProjects\chocolate-commerce-data-platform\data\processed\products_square.json
+
+Process finished with exit code 0
