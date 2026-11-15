@@ -1,0 +1,35 @@
+id: customers_then_orders_to_square_1
+namespace: chocolate
+
+inputs:
+  - id: source_date
+    type: DATE
+    required: true
+
+tasks:
+  - id: sync_pos_customers
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: source_customers_to_square_1
+    inputs:
+      source_date: "{{ inputs.source_date }}"
+    wait: true
+    transmitFailed: true
+
+  - id: sync_online_customers
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: online_customers_to_square_1
+    inputs:
+      source_date: "{{ inputs.source_date }}"
+    wait: true
+    transmitFailed: true
+
+  - id: sync_orders
+    type: io.kestra.plugin.core.flow.Subflow
+    namespace: chocolate
+    flowId: source_orders_to_square_1
+    inputs:
+      source_date: "{{ inputs.source_date }}"
+    wait: true
+    transmitFailed: true

@@ -1,0 +1,69 @@
+id: check_python_environment_1
+namespace: chocolate
+
+inputs:
+  - id: source_date
+    type: DATE
+    required: true
+    description: "CSV 데이터 날짜"
+
+tasks:
+  - id: check_project_files
+    type: io.kestra.plugin.scripts.python.Script
+
+    containerImage: python:3.14.0-slim
+
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      networkMode: chocolate-commerce-data-platform_default
+      volumes:
+        - "/run/desktop/mnt/host/c/Users/smmhk/PycharmProjects/chocolate-commerce-data-platform:/project:ro"
+
+    env:
+      SOURCE_DATE: "{{ inputs.source_date }}"
+
+    script: |
+      import os
+      from datetime import date
+      from pathlib import Path
+
+      project_dir = Path("/project")
+      source_date = os.environ["SOURCE_DATE"]
+      date.fromisoformat(source_date)
+
+      source_dir = (
+          project_dir
+          / "data"
+          / "raw"
+          / "simulated_commerce"
+          / source_date
+      )
+      print(f"[SOURCE] {source_dir}")
+
+      required_files = [
+          project_dir / "src/pipelines/ingestion/online/load_tables_to_postgres.py",
+          project_dir / "requirements.txt",
+      ]
+
+      for table in (
+          "products",
+          "customers",
+          "customer_addresses",
+          "orders",
+          "order_items",
+      ):
+          required_files.append(source_dir / f"{table}_export.csv")
+
+      missing = []
+
+      for path in required_files:
+          if path.is_file():
+              print(f"[FOUND] {path}")
+          else:
+              print(f"[MISSING] {path}")
+              missing.append(str(path))
+
+      if missing:
+          raise FileNotFoundError("\n".join(missing))
+
+      print("[DONE] Project file access check")

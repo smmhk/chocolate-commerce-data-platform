@@ -1,0 +1,35 @@
+id: source_orders_to_square_1
+namespace: chocolate
+
+description: "매장 주문·주문항목 → Square Sandbox 연동 → 원본 CSV 업데이트"
+
+inputs:
+  - id: source_date
+    type: DATE
+    required: true
+    description: "원본 CSV 날짜 (YYYY-MM-DD)"
+
+tasks:
+  - id: sync_orders
+    type: io.kestra.plugin.scripts.python.Commands
+
+    containerImage: python:3.14.0-slim
+
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      networkMode: chocolate-commerce-data-platform_default
+      volumes:
+        - "/run/desktop/mnt/host/c/Users/smmhk/PycharmProjects/chocolate-commerce-data-platform:/project:rw"
+
+    env:
+      SOURCE_DATE: "{{ inputs.source_date }}"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      PIPELINE_ORCHESTRATOR: kestra
+      PIPELINE_RUN_ID: "{{ execution.id }}"
+
+    beforeCommands:
+      - pip install -r /project/requirements.txt
+
+    commands:
+      - cd /project && python -m src.pipelines.source_to_square.sync_orders

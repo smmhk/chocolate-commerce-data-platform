@@ -1,8 +1,14 @@
-id: online_orders_to_postgres
+id: online_customer_addresses_to_postgres_1
 namespace: chocolate
 
+inputs:
+  - id: source_date
+    type: DATE
+    required: true
+    description: "CSV 데이터 날짜"
+
 tasks:
-  - id: load_orders
+  - id: load_customer_addresses
     type: io.kestra.plugin.scripts.python.Commands
 
     containerImage: python:3.14.0-slim
@@ -18,9 +24,10 @@ tasks:
       PYTHONDONTWRITEBYTECODE: "1"
       PIPELINE_ORCHESTRATOR: kestra
       PIPELINE_RUN_ID: "{{ execution.id }}"
+      SOURCE_DATE: "{{ inputs.source_date }}"
 
     beforeCommands:
       - pip install -r /project/requirements.txt
 
     commands:
-      - cd /project && python -m src.pipelines.ingestion.online.load_tables_to_postgres --tables orders
+      - cd /project && python -m src.pipelines.ingestion.online.load_tables_to_postgres --tables customer_addresses
