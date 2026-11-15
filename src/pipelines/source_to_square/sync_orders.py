@@ -1,301 +1,337 @@
 import json
+import logging
+import shutil
+import sys
 from datetime import datetime, timezone
 
 import pandas as pd
 
-from src.config.paths import RAW_DATA_DIR, PROCESSED_DATA_DIR
 from src.clients.square.orders import create_order
+from src.config.paths import get_online_source_dir, PROCESSED_DATA_DIR
 from src.transform.square.orders_payload import transform_order, to_cents
 
 
+LOGGER = logging.getLogger(__name__)
+
+
 def read_csv(path):
-    """ID와 원본 값을 문자열로 유지해서 읽는다."""
     return pd.read_csv(
         path,
         sep=";",
         dtype=str,
         keep_default_na=False,
+        encoding="utf-8-sig",
     )
 
 
-def find_square_id(df, key_column, key_value, id_column):
-    """원본 식별값에 해당하는 Square ID 한 개를 가져온다."""
-    matched_df = df.loc[df[key_column] == key_value]
+def save_csv(df, path):
+    temporary_path = path.with_suffix(".csv.tmp")
+    try:
+        df.to_csv(
+            temporary_path,
+            sep=";",
+            index=False,
+            encoding="utf-8-sig",
+        )
+        temporary_path.replace(path)
+    finally:
+        if temporary_path.exists():
+            temporary_path.unlink()
 
-    if len(matched_df) != 1:
+
+def find_square_id(df, key_column, key_value, id_column):
+    matches = df.loc[df[key_column].eq(key_value)]
+
+    if len(matches) != 1:
         raise ValueError(
-            f"{key_column}={key_value}: "
-            f"연결 대상이 정확히 한 건이어야 합니다."
+            f"{key_column}={key_value}: 연결 대상이 정확히 한 건이어야 합니다."
         )
 
-    square_id = matched_df[id_column].iloc[0].strip()
+    square_id = matches[id_column].iloc[0].strip()
 
-    if not square_id:
+    if not square_id or square_id.startswith("<"):
         raise ValueError(
-            f"{key_column}={key_value}: {id_column}가 비어 있습니다."
+            f"{key_column}={key_value}: {id_column}가 없거나 올바르지 않습니다."
         )
 
     return square_id
 
 
-def save_csv(df, path):
-    """임시 파일에 쓴 뒤 원본을 교체한다."""
-    temp_path = path.with_suffix(".csv.tmp")
-
-    df.to_csv(
-        temp_path,
-        sep=";",
-        index=False,
-        encoding="utf-8",
-    )
-
-    temp_path.replace(path)
-
-
 def run_order_pipeline():
-    # 1. 원본 CSV 읽기
-    orders_path = RAW_DATA_DIR / "orders_export.csv"
-    items_path = RAW_DATA_DIR / "order_items_export.csv"
+    source_dir = get_online_source_dir()
+    orders_path = source_dir / "orders_export.csv"
+    items_path = source_dir / "order_items_export.csv"
 
-    orders_df = read_csv(orders_path)
-    order_items_df = read_csv(items_path)
-    stores_df = read_csv(RAW_DATA_DIR / "stores_export.csv")
-    customers_df = read_csv(RAW_DATA_DIR / "customers_export.csv")
-    products_df = read_csv(RAW_DATA_DIR / "products_export.csv")
+    orders = read_csv(orders_path)
+    items = read_csv(items_path)
+    stores = read_csv(source_dir / "stores_export.csv")
+    customers = read_csv(source_dir / "customers_export.csv")
+    products = read_csv(source_dir / "products_export.csv")
 
+    if orders["order_id"].str.strip().eq("").any():
+        raise ValueError("빈 주문 번호가 있습니다.")
+    if orders["order_id"].duplicated().any():
+        raise ValueError("주문 번호가 중복되어 있습니다.")
+    if items["id"].str.strip().eq("").any():
+        raise ValueError("빈 주문항목 ID가 있습니다.")
+    if items["id"].duplicated().any():
+        raise ValueError("주문항목 ID가 중복되어 있습니다.")
+
+    target = orders.loc[
+        orders["channel"].eq("RETAIL")
+        & orders["order_status"].eq("COMPLETED")
+    ]
+
+    # 기존 실행에서 보관한 요청·응답도 계속 사용
     PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    if orders_df["order_id"].duplicated().any():
-        raise ValueError("원본 주문 번호가 중복되어 있습니다.")
+    LOGGER.info(
+        "status=started source=%s target_orders=%d",
+        source_dir,
+        len(target),
+    )
 
-    # 2. 완료된 매장 주문만 선택
-    target_orders_df = orders_df.loc[
-        (orders_df["channel"] == "RETAIL")
-        & (orders_df["order_status"] == "COMPLETED")
-    ].copy()
+    jobs = []
+    skipped = 0
+    errors = []
 
-    print(f"처리 대상: {len(target_orders_df)}건")
+    # 모든 대상의 ID·금액·지원 조건을 API 전송 전에 검사
+    for index, order in target.iterrows():
+        order_id = order["order_id"]
 
-    success_count = 0
-    skip_count = 0
-
-    # 3. 주문 한 건씩 반복
-    for index in target_orders_df.index:
-        order_df = orders_df.loc[[index]].copy()
-        order = order_df.iloc[0]
-        target_order_id = order["order_id"]
-
-        print(f"\n=== 주문 처리: {target_order_id} ===")
-
-        # 저장까지 완료된 주문은 건너뛴다.
         if (
-            order["square_sync_status"] == "SUCCESS"
-            and order["square_order_id"].strip()
+            order.get("square_sync_status") == "SUCCESS"
+            and order.get("square_order_id", "").strip()
         ):
-            print("이미 연동한 주문입니다. 건너뜁니다.")
-            skip_count += 1
+            skipped += 1
+            LOGGER.info("stage=select order_id=%s status=skipped", order_id)
             continue
 
         try:
-            # 4. 해당 주문의 항목 선택
-            items_df = order_items_df.loc[
-                order_items_df["order_id"] == target_order_id
-            ].copy()
+            order_items = items.loc[items["order_id"].eq(order_id)].copy()
 
-            # 5. 매장 Square ID 조회
-            square_location_id = find_square_id(
-                stores_df,
-                "store_id",
-                order["store_id"],
-                "square_location_id",
+            location_id = find_square_id(
+                stores, "store_id", order["store_id"], "square_location_id"
             )
 
-            # 6. 고객 Square ID 조회
-            # 비회원이면 고객 연결 없이 진행한다.
-            square_customer_id = None
-
+            customer_id = None
             if order["customer_id"].strip():
-                square_customer_id = find_square_id(
-                    customers_df,
+                customer_id = find_square_id(
+                    customers,
                     "id",
                     order["customer_id"],
                     "square_customer_id",
                 )
 
-            # 7. 주문에 포함된 상품의 Variation ID 조회
-            variation_ids_by_sku = {}
-
-            for sku in items_df["sku"].unique():
-                variation_ids_by_sku[sku] = find_square_id(
-                    products_df,
-                    "sku",
-                    sku,
-                    "square_catalog_object_id",
+            variation_ids = {
+                sku: find_square_id(
+                    products, "sku", sku, "square_catalog_object_id"
                 )
+                for sku in order_items["sku"].unique()
+            }
 
-            # 단건 테스트와 같은 키 규칙을 사용한다.
-            idempotency_key = (
-                f"ccf-sandbox-order-{target_order_id}-v1"
-            )
-
-            # 8. 요청 payload 변환
             payload = transform_order(
-                order_df=order_df,
-                items_df=items_df,
-                square_location_id=square_location_id,
-                square_customer_id=square_customer_id,
-                variation_ids_by_sku=variation_ids_by_sku,
-                idempotency_key=idempotency_key,
+                order_df=orders.loc[[index]].copy(),
+                items_df=order_items,
+                square_location_id=location_id,
+                square_customer_id=customer_id,
+                variation_ids_by_sku=variation_ids,
+                idempotency_key=f"ccf-sandbox-order-{order_id}-v1",
             )
 
-            request_path = (
-                PROCESSED_DATA_DIR
-                / f"{target_order_id}_request.json"
-            )
-            response_path = (
-                PROCESSED_DATA_DIR
-                / f"{target_order_id}_response.json"
-            )
+            # ファイル名には注文番号そのものではなくハッシュを使う必要が
+            # ない既存の命名規則を維持。ただしパス文字は拒否する。
+            if any(char in order_id for char in ("/", "\\", "\0")):
+                raise ValueError("注文番号にファイルパス文字が含まれています。")
 
-            # 응답만 있고 원래 요청이 없으면 자동 처리하지 않는다.
+            request_path = PROCESSED_DATA_DIR / f"{order_id}_request.json"
+            response_path = PROCESSED_DATA_DIR / f"{order_id}_response.json"
+
             if response_path.exists() and not request_path.exists():
-                raise ValueError(
-                    "응답 파일은 있지만 요청 파일이 없습니다. "
-                    "기존 요청을 확인해주세요."
-                )
+                raise ValueError("応答ファイルはありますが、元のリクエストがありません。")
 
-            # 9. 기존 요청과 같은 내용인지 확인
             if request_path.exists():
                 saved_payload = json.loads(
                     request_path.read_text(encoding="utf-8")
                 )
-
                 if saved_payload != payload:
                     raise ValueError(
-                        "이전에 저장한 요청과 내용이 다릅니다. "
-                        "기존 Square 주문을 먼저 확인해주세요."
+                        "기존 요청과 내용이 다릅니다. 기존 Square 주문 확인이 필요합니다."
                     )
-            else:
+
+            jobs.append(
+                (index, order_items, payload, request_path, response_path)
+            )
+
+        except Exception as error:
+            errors.append((order_id, str(error)))
+            LOGGER.error(
+                "stage=preflight order_id=%s status=failed reason=%s",
+                order_id,
+                error,
+            )
+
+    if errors:
+        raise ValueError(
+            f"사전 검증 실패: {len(errors)}건. 이번 실행에서는 주문을 전송하지 않았습니다."
+        )
+
+    LOGGER.info(
+        "stage=preflight status=completed pending=%d skipped=%d",
+        len(jobs),
+        skipped,
+    )
+
+    if jobs:
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+        for path in (orders_path, items_path):
+            backup = path.with_name(f"{path.name}.{timestamp}.bak")
+            shutil.copy2(path, backup)
+            LOGGER.info("stage=backup path=%s", backup)
+
+    completed = 0
+
+    for index, order_items, payload, request_path, response_path in jobs:
+        order_id = orders.at[index, "order_id"]
+
+        try:
+            if not request_path.exists():
                 request_path.write_text(
-                    json.dumps(
-                        payload,
-                        indent=2,
-                        ensure_ascii=False,
-                    ),
+                    json.dumps(payload, ensure_ascii=False, indent=2),
                     encoding="utf-8",
                 )
 
-            # 10. 보관한 생성 응답이 있으면 저장 작업부터 복구
             if response_path.exists():
                 square_order = json.loads(
                     response_path.read_text(encoding="utf-8")
                 )
-                print("기존 생성 응답으로 검증·저장을 재시도합니다.")
-
+                LOGGER.info("stage=response order_id=%s status=recovered", order_id)
             else:
                 square_order = create_order(payload)
-
-                print(
-                    "생성된 Square Order ID:",
+                response_path.write_text(
+                    json.dumps(square_order, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+                LOGGER.info(
+                    "stage=create order_id=%s square_order_id=%s status=completed",
+                    order_id,
                     square_order["id"],
                 )
 
-                response_path.write_text(
-                    json.dumps(
-                        square_order,
-                        indent=2,
-                        ensure_ascii=False,
-                    ),
-                    encoding="utf-8",
+            if (
+                square_order["reference_id"] != order_id
+                or square_order["location_id"] != payload["order"]["location_id"]
+                or square_order.get("customer_id")
+                != payload["order"].get("customer_id")
+            ):
+                raise ValueError("응답의 주문·매장·고객 연결이 다릅니다.")
+
+            # 세금과 총액 모두 ±1센트까지 허용
+            tolerance_cents = 1
+
+            for source_column, square_column in (
+                    ("tax_amount", "total_tax_money"),
+                    ("total_amount", "total_money"),
+            ):
+                money = square_order[square_column]
+                expected = to_cents(orders.at[index, source_column])
+                actual = money["amount"]
+                difference = actual - expected
+
+                LOGGER.info(
+                    "stage=validate_money order_id=%s field=%s "
+                    "expected_cents=%d actual_cents=%d difference_cents=%d currency=%s",
+                    order_id,
+                    source_column,
+                    expected,
+                    actual,
+                    difference,
+                    money["currency"],
                 )
 
-            # 11. 응답의 주문·매장 연결 확인
+                if money["currency"] != "CAD":
+                    raise ValueError(
+                        f"통화 불일치: {source_column}, {money['currency']}"
+                    )
+
+                if abs(difference) > tolerance_cents:
+                    raise ValueError(
+                        f"허용 범위 초과: {source_column}, "
+                        f"원본={expected}센트, Square={actual}센트, "
+                        f"차이={difference}센트"
+                    )
+
+                if difference != 0:
+                    LOGGER.warning(
+                        "stage=validate_money order_id=%s field=%s "
+                        "status=accepted_with_tolerance difference_cents=%d tolerance_cents=%d",
+                        order_id,
+                        source_column,
+                        difference,
+                        tolerance_cents,
+                    )
+
+            square_items = square_order.get("line_items", [])
+            by_uid = {item["uid"]: item for item in square_items}
+
             if (
-                square_order["reference_id"] != target_order_id
-                or square_order["location_id"] != square_location_id
+                len(by_uid) != len(square_items)
+                or set(order_items["id"]) != set(by_uid)
             ):
-                raise ValueError("응답의 주문 또는 매장이 다릅니다.")
+                raise ValueError("원본과 Square의 주문항목 ID가 다릅니다.")
 
-            # # 12. 원본과 Square 금액 비교
-            # expected_tax = to_cents(order["tax_amount"])
-            # expected_total = to_cents(order["total_amount"])
-            #
-            # actual_tax = square_order["total_tax_money"]
-            # actual_total = square_order["total_money"]
-            #
-            # if (
-            #     actual_tax["currency"] != "CAD"
-            #     or actual_total["currency"] != "CAD"
-            #     or actual_tax["amount"] != expected_tax
-            #     or actual_total["amount"] != expected_total
-            # ):
-            #     raise ValueError(
-            #         f"금액 불일치 — "
-            #         f"세금: 원본 {expected_tax}, "
-            #         f"Square {actual_tax['amount']} / "
-            #         f"총액: 원본 {expected_total}, "
-            #         f"Square {actual_total['amount']}"
-            #     )
+            for item_index, item in order_items.iterrows():
+                square_item = by_uid[item["id"]]
+                expected_id = next(
+                    line["catalog_object_id"]
+                    for line in payload["order"]["line_items"]
+                    if line["uid"] == item["id"]
+                )
+                if square_item["catalog_object_id"] != expected_id:
+                    raise ValueError("응답의 상품 Variation ID가 다릅니다.")
 
-            # 13. 주문 항목 연결 확인
-            square_items_by_uid = {
-                item["uid"]: item
-                for item in square_order["line_items"]
-            }
+                items.at[item_index, "square_line_item_uid"] = square_item["uid"]
+                items.at[item_index, "square_catalog_object_id"] = expected_id
 
-            if set(items_df["id"]) != set(square_items_by_uid):
-                raise ValueError("원본과 Square의 항목 ID가 다릅니다.")
-
-            # 14. 주문 항목의 Square 정보 기록
-            for item_index in items_df.index:
-                item_id = order_items_df.at[item_index, "id"]
-                square_item = square_items_by_uid[item_id]
-
-                order_items_df.at[
-                    item_index, "square_line_item_uid"
-                ] = square_item["uid"]
-
-                order_items_df.at[
-                    item_index, "square_catalog_object_id"
-                ] = square_item["catalog_object_id"]
-
-            # 15. 주문의 Square 정보 기록
-            sync_values = {
+            values = {
                 "square_order_id": square_order["id"],
-                "square_customer_id": square_order.get(
-                    "customer_id", ""
-                ),
+                "square_customer_id": square_order.get("customer_id", ""),
                 "square_location_id": square_order["location_id"],
                 "square_sync_status": "SUCCESS",
-                "square_synced_at": datetime.now(
-                    timezone.utc
-                ).isoformat(),
+                "square_synced_at": datetime.now(timezone.utc).isoformat(),
                 "square_sync_error": "",
             }
+            for column, value in values.items():
+                orders.at[index, column] = value
 
-            for column, value in sync_values.items():
-                orders_df.at[index, column] = value
+            # 항목 먼저 저장하고 주문 성공 상태 저장
+            save_csv(items, items_path)
+            save_csv(orders, orders_path)
+            completed += 1
 
-            # 16. 항목 CSV부터 저장하고 주문 CSV 저장
-            save_csv(order_items_df, items_path)
-            save_csv(orders_df, orders_path)
-
-            success_count += 1
-            print(f"연동 및 저장 완료: {target_order_id}")
-
-        except Exception as error:
-            print(f"처리 중단: {target_order_id}")
-            print(f"오류: {error}")
-            print(
-                "Square에 이미 생성됐을 수 있습니다. "
-                "보관한 요청·응답을 확인해주세요."
+            LOGGER.info(
+                "stage=save_csv order_id=%s items=%d status=completed",
+                order_id,
+                len(order_items),
             )
+
+        except Exception:
+            LOGGER.exception("status=failed order_id=%s", order_id)
             raise
 
-    print("\n=== 주문 파이프라인 완료 ===")
-    print(f"이번 실행 저장 완료: {success_count}건")
-    print(f"기존 성공 주문 건너뜀: {skip_count}건")
+    LOGGER.info(
+        "status=completed target=%d saved=%d skipped=%d",
+        len(target),
+        completed,
+        skipped,
+    )
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        stream=sys.stdout,
+        force=True,
+    )
     run_order_pipeline()

@@ -1,4 +1,4 @@
-from src.config.paths import RAW_DATA_DIR
+from src.config.paths import get_online_source_dir
 from src.extract.csv_reader import load_csv
 
 
@@ -16,19 +16,12 @@ CSV_FILES = {
 # =========================================================
 
 def load_online_data():
-    """온라인 파이프라인에 사용할 원본 CSV 5개를 읽는다."""
-
+    source_dir = get_online_source_dir()
     source_data = {}
 
     for table_name, filename in CSV_FILES.items():
-        file_path = RAW_DATA_DIR / filename
-
+        file_path = source_dir / filename
         df = load_csv(file_path)
-
-        print(
-            f"[EXTRACT] {table_name} rows: {len(df)}"
-        )
-
         source_data[table_name] = df
 
     return source_data
