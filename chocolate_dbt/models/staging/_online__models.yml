@@ -1,0 +1,166 @@
+
+version: 2
+
+models:
+  - name: stg_online_orders
+    description: >
+      Cleaned Online orders.
+      Grain: one row per source order.
+
+    columns:
+      - name: source_record_id
+        description: Original source record identifier.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: order_id
+        description: Business order identifier.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: customer_id
+        description: >
+          Customer reference. May be null for guest orders.
+
+      - name: order_status
+        description: Normalized source order status.
+
+      - name: order_date
+        description: >
+          Order creation date in America/Vancouver timezone.
+
+      - name: total_amount
+        description: >
+          Source order total in CAD, including applicable
+          discounts, taxes and shipping.
+
+  - name: stg_online_order_items
+    description: >
+      Cleaned Online order line items.
+      Grain: one row per source order item.
+
+    columns:
+      - name: source_record_id
+        description: Original order item identifier.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: order_id
+        description: References the Online business order ID.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_online_orders')
+                field: order_id
+
+      - name: product_id
+        description: References the Online business product ID.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_online_products')
+                field: product_id
+
+      - name: quantity
+        description: Ordered quantity.
+
+      - name: unit_price
+        description: Unit price at the time of order in CAD.
+
+      - name: line_total
+        description: Source order line total in CAD.
+
+
+
+
+
+  - name: stg_online_products
+    description: >
+      Cleaned Online product catalog.
+      Grain: one row per product.
+
+    columns:
+      - name: source_record_id
+        description: Original product record identifier.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: product_id
+        description: Online business product identifier.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: sku
+        description: Product SKU.
+
+      - name: price
+        description: Product catalog price in CAD.
+
+      - name: active_status
+        description: Source product active flag.
+
+
+  - name: stg_online_customers
+    description: >
+      Cleaned Online customer records.
+      Grain: one row per source customer.
+
+    columns:
+      - name: customer_id
+        description: Original Online customer ID.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: email
+        description: Normalized customer email address.
+
+      - name: signup_channel
+        description: Normalized signup channel.
+
+      - name: square_customer_id
+        description: >
+          Square customer ID when available.
+          May be null.
+
+      - name: customer_created_at
+        description: Original customer creation timestamp.
+
+  - name: stg_online_customer_addresses
+    description: >
+      Cleaned Online customer addresses.
+      Grain: one row per source address record.
+
+    columns:
+      - name: source_record_id
+        description: Original address record identifier.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: customer_id
+        description: References the Online customer ID.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_online_customers')
+                field: customer_id
+
+      - name: postal_code
+        description: Normalized postal code.
+
+      - name: province
+        description: Normalized province.
+
+      - name: is_default
+        description: Source default address flag.
+
+
