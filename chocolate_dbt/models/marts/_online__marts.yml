@@ -1,0 +1,41 @@
+
+version: 2
+
+models:
+  - name: mart_online_daily_sales
+    description: >
+      Daily completed online orders grouped by
+      order creation date in Vancouver timezone.
+
+    columns:
+      - name: order_date
+        description: Online order creation date.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: total_orders
+        description: Number of completed orders.
+
+      - name: total_order_amount_cad
+        description: Total amount of completed orders in CAD.
+
+  - name: mart_online_product_sales
+    description: >
+      Product-level completed online order analysis.
+      Grain: one row per product.
+
+    columns:
+      - name: product_id
+        data_tests:
+          - unique
+          - not_null
+
+      - name: units_sold
+        description: Total quantity sold.
+
+      - name: order_count
+        description: Number of completed orders containing the product.
+
+      - name: item_amount_cad
+        description: Sum of order line amounts in CAD.
