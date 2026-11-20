@@ -2,6 +2,7 @@
 {{ config(materialized='view') }}
 
 select
+    order_date,
     product_id,
 
     max(product_name_at_order) as product_name,
@@ -17,4 +18,4 @@ from {{ ref('int_online_order_items_enriched') }}
 
 where is_completed_order = true
 
-group by product_id
+group by order_date, product_id

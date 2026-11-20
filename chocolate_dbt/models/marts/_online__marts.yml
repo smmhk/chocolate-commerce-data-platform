@@ -22,20 +22,29 @@ models:
 
   - name: mart_online_product_sales
     description: >
-      Product-level completed online order analysis.
-      Grain: one row per product.
+      Daily product sales for completed online orders.
+      Grain: one row per Vancouver order date and product.
+
+    data_tests:
+      - unique:
+          arguments:
+            column_name: "(concat(cast(order_date as string), '|', cast(product_id as string)))"
 
     columns:
+      - name: order_date
+        description: Online order creation date in the Vancouver timezone.
+        data_tests:
+          - not_null
+
       - name: product_id
         data_tests:
-          - unique
           - not_null
 
       - name: units_sold
         description: Total quantity sold.
 
       - name: order_count
-        description: Number of completed orders containing the product.
+        description: Number of completed orders containing the product on the order date.
 
       - name: item_amount_cad
         description: Sum of order line amounts in CAD.
