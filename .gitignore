@@ -8,6 +8,6 @@ data/raw/
 data/processed/*.json
 data/processed/product_result
 data/processed/*.csv
-readme/*.md
+#readme/*.md
 /exports/
 .env.kestra
