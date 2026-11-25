@@ -6,8 +6,9 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from src.clients.square.orders import create_order
+from src.clients.square.orders import create_order, retrieve_order
 from src.config.paths import get_online_source_dir, PROCESSED_DATA_DIR
+from src.pipelines.source_to_square.complete_order import complete_cash_order
 from src.transform.square.orders_payload import transform_order, to_cents
 
 
@@ -99,9 +100,12 @@ def run_order_pipeline():
     for index, order in target.iterrows():
         order_id = order["order_id"]
 
+        existing_order_id = order.get("square_order_id", "").strip()
+        is_cash_order = order.get("payment_method", "").strip().upper() == "CASH"
         if (
-            order.get("square_sync_status") == "SUCCESS"
-            and order.get("square_order_id", "").strip()
+            not is_cash_order
+            and order.get("square_sync_status") == "SUCCESS"
+            and existing_order_id
         ):
             skipped += 1
             LOGGER.info("stage=select order_id=%s status=skipped", order_id)
@@ -147,10 +151,10 @@ def run_order_pipeline():
             request_path = PROCESSED_DATA_DIR / f"{order_id}_request.json"
             response_path = PROCESSED_DATA_DIR / f"{order_id}_response.json"
 
-            if response_path.exists() and not request_path.exists():
+            if not existing_order_id and response_path.exists() and not request_path.exists():
                 raise ValueError("応答ファイルはありますが、元のリクエストがありません。")
 
-            if request_path.exists():
+            if not existing_order_id and request_path.exists():
                 saved_payload = json.loads(
                     request_path.read_text(encoding="utf-8")
                 )
@@ -160,7 +164,10 @@ def run_order_pipeline():
                     )
 
             jobs.append(
-                (index, order_items, payload, request_path, response_path)
+                (
+                    index, order_items, payload, request_path, response_path,
+                    existing_order_id, is_cash_order,
+                )
             )
 
         except Exception as error:
@@ -182,35 +189,37 @@ def run_order_pipeline():
         skipped,
     )
 
-    if jobs:
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-        for path in (orders_path, items_path):
-            backup = path.with_name(f"{path.name}.{timestamp}.bak")
-            shutil.copy2(path, backup)
-            LOGGER.info("stage=backup path=%s", backup)
-
     completed = 0
+    backed_up = False
 
-    for index, order_items, payload, request_path, response_path in jobs:
+    for (
+        index, order_items, payload, request_path, response_path,
+        existing_order_id, is_cash_order,
+    ) in jobs:
         order_id = orders.at[index, "order_id"]
 
         try:
-            if not request_path.exists():
-                request_path.write_text(
-                    json.dumps(payload, ensure_ascii=False, indent=2),
-                    encoding="utf-8",
-                )
-
-            if response_path.exists():
-                square_order = json.loads(
-                    response_path.read_text(encoding="utf-8")
+            if existing_order_id:
+                square_order = retrieve_order(existing_order_id)
+            elif response_path.exists():
+                saved_order = json.loads(response_path.read_text(encoding="utf-8"))
+                square_order = (
+                    retrieve_order(saved_order["id"]) if is_cash_order else saved_order
                 )
                 LOGGER.info("stage=response order_id=%s status=recovered", order_id)
             else:
-                square_order = create_order(payload)
+                if not request_path.exists():
+                    request_path.write_text(
+                        json.dumps(payload, ensure_ascii=False, indent=2),
+                        encoding="utf-8",
+                    )
+                created_order = create_order(payload)
                 response_path.write_text(
-                    json.dumps(square_order, ensure_ascii=False, indent=2),
+                    json.dumps(created_order, ensure_ascii=False, indent=2),
                     encoding="utf-8",
+                )
+                square_order = (
+                    retrieve_order(created_order["id"]) if is_cash_order else created_order
                 )
                 LOGGER.info(
                     "stage=create order_id=%s square_order_id=%s status=completed",
@@ -280,18 +289,53 @@ def run_order_pipeline():
             ):
                 raise ValueError("원본과 Square의 주문항목 ID가 다릅니다.")
 
+            requested_items = {
+                line["uid"]: line for line in payload["order"]["line_items"]
+            }
+            mappings_match = True
+            checked_fields = ("catalog_object_id",)
+            if is_cash_order:
+                checked_fields += ("quantity", "base_price_money")
+
             for item_index, item in order_items.iterrows():
                 square_item = by_uid[item["id"]]
-                expected_id = next(
-                    line["catalog_object_id"]
-                    for line in payload["order"]["line_items"]
-                    if line["uid"] == item["id"]
-                )
-                if square_item["catalog_object_id"] != expected_id:
-                    raise ValueError("응답의 상품 Variation ID가 다릅니다.")
+                requested_item = requested_items[item["id"]]
+                for field in checked_fields:
+                    if square_item.get(field) != requested_item[field]:
+                        raise ValueError("응답의 상품 Variation ID, 수량 또는 단가가 다릅니다.")
 
-                items.at[item_index, "square_line_item_uid"] = square_item["uid"]
-                items.at[item_index, "square_catalog_object_id"] = expected_id
+                square_uid = square_item["uid"]
+                variation_id = square_item["catalog_object_id"]
+                if (
+                    item.get("square_line_item_uid") != square_uid
+                    or item.get("square_catalog_object_id") != variation_id
+                ):
+                    mappings_match = False
+                    items.at[item_index, "square_line_item_uid"] = square_uid
+                    items.at[item_index, "square_catalog_object_id"] = variation_id
+
+            if is_cash_order:
+                prior_state = square_order["state"]
+                complete_cash_order(square_order)
+                LOGGER.info("stage=order_completion order_id=%s state=COMPLETED", order_id)
+                if (
+                    prior_state == "COMPLETED"
+                    and existing_order_id
+                    and orders.loc[index].get("square_sync_status") == "SUCCESS"
+                    and orders.loc[index].get("square_location_id") == square_order["location_id"]
+                    and orders.loc[index].get("square_customer_id", "") == square_order.get("customer_id", "")
+                    and mappings_match
+                ):
+                    skipped += 1
+                    continue
+
+            if not backed_up:
+                timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+                for path in (orders_path, items_path):
+                    backup = path.with_name(f"{path.name}.{timestamp}.bak")
+                    shutil.copy2(path, backup)
+                    LOGGER.info("stage=backup path=%s", backup)
+                backed_up = True
 
             values = {
                 "square_order_id": square_order["id"],

@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 import requests
 
 from src.clients.square.config import headers
@@ -98,3 +100,35 @@ def search_orders(location_ids: list[str]) -> list[dict]:
     print(f"[EXTRACT] total orders: {len(orders)}")
 
     return orders
+
+def sandbox_request(method, path, **kwargs):
+    response = requests.request(
+        method,
+        f"https://connect.squareupsandbox.com/v2{path}",
+        headers=headers,
+        timeout=30,
+        allow_redirects=False,
+        **kwargs,
+    )
+    if not 200 <= response.status_code < 300:
+        raise RuntimeError(f"Square Sandbox 요청 실패 (HTTP {response.status_code})")
+
+    result = response.json()
+    if result.get("errors"):
+        raise RuntimeError("Square Sandbox 응답에 오류가 있습니다.")
+    return result
+
+
+def retrieve_order(order_id):
+    order = sandbox_request("GET", f"/orders/{quote(order_id, safe='')}")["order"]
+    if order.get("id") != order_id:
+        raise ValueError("조회 결과의 Square 주문 ID가 다릅니다.")
+    return order
+
+
+def pay_order(order_id, payment_id, idempotency_key):
+    sandbox_request(
+        "POST",
+        f"/orders/{quote(order_id, safe='')}/pay",
+        json={"idempotency_key": idempotency_key, "payment_ids": [payment_id]},
+    )
